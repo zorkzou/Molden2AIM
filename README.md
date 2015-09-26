@@ -16,44 +16,6 @@ Version 3.1.0 (02/25/2015). Significant updates since version 3.0.0.
 
 The WFX format will be supported in future.
 
-# About the Molden file
-
-Molden file can be generated using the following quantum chemistry programs, but some of them have not been supported by Molden2AIM.
-
-1.	MOLPRO	Supported.
-2.	MOLCAS	Both spherical and Cartesian functions are supported except their combinations; in the case of Cartesian functions insert a command line
-[Program] Molcas
-into the Molden file or specify PROGRAM=6 in the m2a.ini file.
-3.	deMon2k	Supported.
-4.	Q-Chem	Spherical S, P, D, and F or Cartesian S, P, and D basis functions.
-5.	CFour	Use a fixed reorderdf.F a), and insert a command line
-[Program] Cfour
-into the Molden file or specify PROGRAM=2 in the m2a.ini file.
-6.	Turbomole	Insert a command line
-[Program] Turbomole
-into the Molden file or specify PROGRAM=3 in the m2a.ini file.
-7.	ORCA	Insert a command line
-[Program] Orca
-into the Molden file or specify PROGRAM=1 in the m2a.ini file.
-8.	Columbus	Natural orbitals from MCSCF or CI with Cartesian SPDF functions b). Thanks to Dr. Marat Talipov for testing.
-9.	Priroda	Thanks to Dr. Evgeniy Pankratyev for testing.
-10.	DALTON 2013	HF c)/DFT c)/MP2/MCSCF with spherical basis functions.
-11.	TeraChem	S, P, D, and F basis functions are supported.
-12.	ACES-II 2.9	Use a fixed reorder.F d), and insert a command line
-[Program] aces2
-into the Molden file or specify PROGRAM=5 in the m2a.ini file.
-13.	NWChem	Using JANPA/nwchem2molden to generate MOLDEN file.
-14.	BDF	NR and SR with GTO. Thanks to Dr. Bingbing Suo for testing.
-15.	PSI4	Spherical basis functions only; insert a command line
-[Program] PSI4
-into the Molden file or specify PROGRAM=7 in the m2a.ini file.
-16.	CADPAC	The utility program cad2mol.f in MOLDEN is required to generate Molden file.
-17.	MRCC	Both spherical and Cartesian functions are supported e). In the case of Cartesian functions insert a command line
-[Program] MRCC
-into the Molden file or specify PROGRAM=8 in the m2a.ini file.
-18.	StoBe	To be tested.
-19.	NRLMOL	To be tested.
-20.	ADF	Not supported.
-21.	Jaguar	Not supported f).
+## About the Molden file
 
 See readme.html for details.
