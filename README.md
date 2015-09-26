@@ -72,3 +72,4 @@ f) (Jaguar) One can insert a command line
 2. The total energy and virial ratio printed on the last line of the WFN file do not make sense. If they are used in your AIM analysis, please modify them manually.
 3. The data saved in the *.47 file are very limited. For example, the "Second Order Perturbation Theory Analysis of Fock Matrix in NBO Basis" cannot be performed since the Fock matrix is absent.
 4. Because of some uncertainties in the MOLDEN format, now the atomic indices must be ordered ascendingly (this is always checked). If not, a utility program roa (ReOrdAtm.f90) in util can be used to correct the Molden file.
+ 
