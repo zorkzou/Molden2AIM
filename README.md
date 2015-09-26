@@ -56,23 +56,4 @@ into the Molden file or specify PROGRAM=8 in the m2a.ini file.
 20.	ADF	Not supported.
 21.	Jaguar	Not supported f).
 
-# Notes
-
-a) (CFour) Put reorderdf.F into $CFour/libr, and recompile the CFour program.
-b) (Columbus) Dalton AO integrals have to be used; spherical basis functions cannot pass the examination; occupation numbers of HF and MCSCF MOs are wrong.
-c) (Dalton 2013) Occupation numbers of HF and DFT are all zero values by mistake. One has to correct them by hand or by writing a script.
-d) (ACES-II) Put reorder.F into $ACES-II-2.9.0/a2proc, and recompile the ACES-II 2.9 program. To reduce numerical errors, it is also recommended to modify $ACES-II-2.9.0/a2proc/molden_rdorb.F: replace the line 170
-  130 format(I4,A,F12.6)
-  by
-  130 format(I4,A,F18.10)
-e) (MRCC) To use spherical functions correctly, you have to update to the latest version of MRCC.
-f) (Jaguar) One can insert a command line
-  [Program] Jaguar
-  into the Molden file or specify PROGRAM=4 in the m2a.ini file. However, the generated WFN file maybe cannot pass the checking of normalization.
-
-# Limitations
-
-1. In general, only S, P, D, F, and G Gaussian basis functions are supported by Molden2AIM. AIMALL and Multiwfn can also use H functions, however, which are not supported by the Molden format at present.
-2. The total energy and virial ratio printed on the last line of the WFN file do not make sense. If they are used in your AIM analysis, please modify them manually.
-3. The data saved in the *.47 file are very limited. For example, the "Second Order Perturbation Theory Analysis of Fock Matrix in NBO Basis" cannot be performed since the Fock matrix is absent.
-4. Because of some uncertainties in the MOLDEN format, now the atomic indices must be ordered ascendingly (this is always checked). If not, a utility program roa (ReOrdAtm.f90) in util can be used to correct the Molden file.
+See readme.html for details.
