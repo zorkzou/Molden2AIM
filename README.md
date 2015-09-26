@@ -7,14 +7,14 @@ Version 3.1.0 (02/25/2015). Significant updates since version 3.0.0.
 3. ReOrdAtm.f90 has been updated for CFour.
 4. Check the normalization of NBO's *.47 file.
 
-Features
+# Features
 
 1. It converts the data format from Molden to AIM's WFN. The latter format can be read by AIMPAC, AIMPAC2, AIM2000, AIMALL, AIM-UC, DGrid, MORPHY98, Multiwfn, PAMoC, ProMolden, TopChem, TopMoD, Xaim, and so on.
 2. It saves NBO's *.47 data file. One can do NBO analysis using the stand-alone GENNBO program.
 
 The WFX format will be supported in future.
 
-About the Molden file
+# About the Molden file
 
 Molden file can be generated using the following quantum chemistry programs, but some of them have not been supported by Molden2AIM.
 
@@ -66,7 +66,7 @@ f) (Jaguar) One can insert a command line
   [Program] Jaguar
   into the Molden file or specify PROGRAM=4 in the m2a.ini file. However, the generated WFN file maybe cannot pass the checking of normalization.
 
-Limitations
+# Limitations
 
 1. In general, only S, P, D, F, and G Gaussian basis functions are supported by Molden2AIM. AIMALL and Multiwfn can also use H functions, however, which are not supported by the Molden format at present.
 2. The total energy and virial ratio printed on the last line of the WFN file do not make sense. If they are used in your AIM analysis, please modify them manually.
