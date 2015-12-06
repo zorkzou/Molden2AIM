@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/zorkzou/Molden2AIM/master/m2a-logo.png" />
+
 # Molden2AIM
 Molden2AIM is a utility program which can be used to creat AIM-WFN and NBO-47 files from a Molden file.
 
@@ -19,3 +21,5 @@ The WFX format will be supported in future.
 ## About the Molden file
 
 See readme.html for details.
+
+Examples of applications can be found in W. Zou, D. Nori-Shargh, and J. E. Boggs, On the Covalent Character of Rare Gas Bonding Interactions: A New Kind of Weak Interaction, J. Phys. Chem. A, 2013, 117(1), pp 207-212 at http://pubs.acs.org/doi/abs/10.1021/jp3104535
