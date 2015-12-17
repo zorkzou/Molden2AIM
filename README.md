@@ -18,9 +18,11 @@ Version 3.1.0 (02/25/2015).
 ## Features
 
 1. It converts the data format from Molden to AIM's WFN. The latter format can be read by AIMPAC, AIMPAC2, AIM2000, AIMALL, AIM-UC, DGrid, MORPHY98, Multiwfn, PAMoC, ProMolden, TopChem, TopMoD, Xaim, and so on.
-2. It saves NBO's *.47 data file. One can do NBO analysis using the stand-alone GENNBO program.
+2. It saves NBO's *.47 data file. One can do NBO analysis using the stand-alone GENNBO program. In the case of Cartesian basis functions, the following loop can be performed using NBO6 (released after May.2014).
 
-The WFX format will be supported in future.
+The WFX format will be supported in the future.
+
+<img src="https://raw.githubusercontent.com/zorkzou/Molden2AIM/master/m2a-loop.png" />
 
 ## About the Molden file
 
