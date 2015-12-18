@@ -25,7 +25,10 @@ c--- Ver.3.0.4, 10/22/2014, Supports CADPAC.
 c--- Ver.3.0.5, 11/21/2014, Supports MRCC (Cart. & spherical functions).
 c--- Ver.3.0.6, 02/19/2015, ReOrdAtm.f90 has been updated for CFour.
 c--- Ver.3.1.0, 02/25/2015, Check NBO's .47 file.
-c--- Ver.3.2.0, 12/16/2015, Supports NBO 6 (> May.2014).
+c--- Ver.3.2.0, 12/18/2015, Supports NBO 6 (> May.2014), MOLDEN file
+c---                        saved by Molden program (output from GAMESS/
+c---                        Firefly/GAMESS-UK/Gaussian; but Q-Chem is
+c---                        not supported), and Gabedit file.
 c---
 c--- E-mail: qcband@gmail.com
 c-----------------------------------------------------------------------
@@ -57,7 +60,7 @@ c-----------------------------------------------------------------------
 c---  head
 c-----------------------------------------------------------------------
       ver="3.2.0"
-      dt="12/16/2015"
+      dt="12/18/2015"
       call headprt(ver,dt)
 
 c-----------------------------------------------------------------------
@@ -1834,13 +1837,16 @@ c-----------------------------------------------------------------------
       subroutine filename(imod,fwfn,fnbo)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       character*57 fwfn,fnbo,fmod(2)
-      character*7 exten(6)
-      data exten
-     */'.mol   ','.MOL   ','.mold  ','.MOLD  ','.molden','.MOLDEN'/
+      character*7 exten(8)
+      data exten/
+     * '.mol   ','.MOL   ','.mold  ','.MOLD  ','.molden','.MOLDEN',
+     * '.gab   ','.GAB   '/
 
       write(*,"(///)")
-100   write(*,"(' Type in the MOLDEN file name within 50 characters:',/,
-     &' (extension mol/mold/molden can be omitted; default: MOLDEN)',/,
+100   write(*,"(' Type in the MOLDEN/GABEDIT file name within 50',
+     -' characters:',/,
+     &' (extension mol/mold/molden/gab can be omitted;',
+     -' default: MOLDEN)',/,
      &' > ',$)")
       read(*,"(a50)")fmod(1)(:)
       lstr=nonspace(fmod(1)(:))
@@ -1855,7 +1861,7 @@ c-----------------------------------------------------------------------
       goto 300
 110   if(fmod(1)(lend:lend).eq.'.')lend=lend-1
       iinp=2
-      do i=1,6
+      do i=1,8
         fmod(2)(:)=fmod(1)(lstr:lend)//trim(exten(i))
         open(imod,file=fmod(2)(:),status='old',err=120)
         goto 300
@@ -1863,7 +1869,7 @@ c-----------------------------------------------------------------------
       end do
       write(*,"(//,' ### Wrong! These MOLDEN files do not exist!')")
       write(*,"(1x,a)")fmod(1)
-      do i=1,6
+      do i=1,8
         write(*,"(1x,a)")fmod(1)(lstr:lend)//trim(exten(i))
       end do
       write(*,"(/,' Please try again.',/)")
@@ -1996,7 +2002,11 @@ c-----------------------------------------------------------------------
      &' 17) MRCC (for Cart. functions, insert [PROGRAM] MRCC into',
      -    ' MOLDEN file)',/,
      &' 18) NBO6 (> May.2014, insert [PROGRAM] NBO6 into',
-     -    ' MOLDEN file)'
+     -    ' MOLDEN file)',/,
+     &' 19) Molden (the Molden program can read MOs from the output',
+     -    ' file of some',/,
+     &'     QC programs, and save a MOLDEN file)',/,
+     &' 20) Gabedit (the GAB file is compatible)'
      &)")
 
       write(*,"(/,
@@ -3076,6 +3086,7 @@ c-----------------------------------------------------------------------
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       character*100 tmp
       character*2 al
+      logical find
 
       itmp=55
       igtoin=56
@@ -3093,7 +3104,9 @@ c--- step 1: backup original GTO
 
 100   read(imod,"(100a)",end=150)tmp
       call charl2u(tmp,100)
-      if(index(tmp,'[GTO]').ne.0)then    ! the first several blank lines are skipped
+c     [GTO]: MOLDEN file; [BASIS]: GABEDIT file
+      find = index(tmp,'[GTO]').ne.0 .or. index(tmp,'[BASIS]').ne.0
+      if(find)then    ! the first several blank lines are skipped
         do while(ifirst.eq.0)
           read(imod,"(100a)",end=500)tmp
           ifirst=len_trim(tmp)
@@ -3102,7 +3115,7 @@ c--- step 1: backup original GTO
       end if
       goto 100
 
-150   write(*,*)"### Wrong! [GTO] can not be found!"
+150   write(*,*)"### Wrong! [GTO] or [BASIS] can not be found!"
       ifgto=0
       close(igtoin,status='delete')
       return
