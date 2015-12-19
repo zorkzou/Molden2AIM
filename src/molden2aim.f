@@ -60,7 +60,7 @@ c-----------------------------------------------------------------------
 c---  head
 c-----------------------------------------------------------------------
       ver="3.2.0"
-      dt="12/18/2015"
+      dt="12/19/2015"
       call headprt(ver,dt)
 
 c-----------------------------------------------------------------------
@@ -1867,7 +1867,8 @@ c-----------------------------------------------------------------------
         goto 300
 120     continue
       end do
-      write(*,"(//,' ### Wrong! These MOLDEN files do not exist!')")
+      write(*,"(//,
+     &  ' ### Wrong! These MOLDEN/GABEDIT files do not exist!')")
       write(*,"(1x,a)")fmod(1)
       do i=1,8
         write(*,"(1x,a)")fmod(1)(lstr:lend)//trim(exten(i))
@@ -1875,8 +1876,8 @@ c-----------------------------------------------------------------------
       write(*,"(/,' Please try again.',/)")
       goto 100
 
-300   write(*,"(/,' The MOLDEN file ',a,' has been found.',//)")
-     *trim(fmod(iinp))
+300   write(*,"(/,' The MOLDEN/GABEDIT file ',a,' has been found.',/,
+     &  1x,77('_'),/)") trim(fmod(iinp))
 c---  define the *.wfn/wfx/47 file name
       lend2=index(fmod(iinp),'.',.true.)
       if(lend2 .gt. 1) lend = lend2-1
