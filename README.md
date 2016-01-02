@@ -28,7 +28,9 @@ The WFX format will be supported in the future.
 
 ## Compilation
 
-    > gfortran -O3 molden2aim.f -o molden2aim.exe
+    > F90 -O3 molden2aim.f -o molden2aim.exe
+
+here `F90` can be `gfortran`, `g95`, `pgf90`, `ifort`, or other FORTRAN90 compilers.
 
 ## Running Molden2AIM
 
@@ -45,7 +47,9 @@ The WFX format will be supported in the future.
 2. Rename `m2a-unix.ini` to `m2a.ini`.
 3. If necessary, insert a [Program] line into the MOLDEN file, or edit the program parameter in `m2a.ini` (you can also setup other parameters there).
 4. In the terminal, type in
+
     > ./molden2aim.exe
+
 and then type in the name of the MOLDEN file.
 
 ## About the Molden file
