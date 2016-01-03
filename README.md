@@ -50,7 +50,7 @@ here `F90` can be `gfortran`, `g95`, `pgf90`, `ifort`, or other FORTRAN90 compil
 
     > ./molden2aim.exe
 
-and then type in the name of the MOLDEN file.
+   and then type in the name of the MOLDEN file.
 
 ## About the Molden file
 
