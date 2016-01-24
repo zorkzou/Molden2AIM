@@ -25,7 +25,9 @@ Version 3.1.0 (02/25/2015).
 
 1. It converts the data format from Molden to AIM's WFN. The latter format can be read by [AIMPAC](http://www.chemistry.mcmaster.ca/aimpac/imagemap/imagemap.htm), [AIMPAC2](http://www.beaconresearch.org/AIMPAC2/index.html), [AIM2000](http://www.aim2000.de/), [AIMALL](http://aim.tkgristmill.com/), [AIM-UC](http://alfa.facyt.uc.edu.ve/quimicomp/), [DensToolKit](https://sites.google.com/site/jmsolanoalt/software/denstoolkit), [DGrid](http://www.cpfs.mpg.de/~kohout/dgrid.html), [MORPHY98](http://morphy.mib.man.ac.uk/), [Multiwfn](http://multiwfn.codeplex.com/), [PAMoC](http://www.istm.cnr.it/~barz/pamoc/), [ProMolden](http://azufre.quimica.uniovi.es/d-DensEl/), [TopChem](http://www.lct.jussieu.fr/pagesperso/pilme/topchempage.html), [TopMoD](http://www.lct.jussieu.fr/pagesperso/silvi/topmod.html), [Xaim](http://www.quimica.urv.es/XAIM/), and so on. The GAB file of [Gabedit](http://gabedit.sourceforge.net/) is compatible.
 2. It saves [NBO](http://nbo6.chem.wisc.edu/)'s *.47 data file. One can do NBO analysis using the stand-alone [GENNBO](http://nbo6.chem.wisc.edu/) program. In addition, the following loops can be performed using [NBO](http://nbo6.chem.wisc.edu/).
+
 <img src="https://raw.githubusercontent.com/zorkzou/Molden2AIM/master/m2a-loop.png" />
+
 3. After the *.47 file being generated, it can calculate the generalized Wiberg bond order indices (GWBO) in MO (see I. Mayer, C.P.L. 97, 270, 1983). In the case of closed-shell system, they are the Mayer bond orders (MBO) in MO.
 
 The WFX format will be supported in the future.
