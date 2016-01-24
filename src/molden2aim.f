@@ -29,6 +29,7 @@ c--- Ver.3.2.0, 12/18/2015, Supports NBO 6 (> May.2014), MOLDEN file
 c---                        saved by Molden program (output from GAMESS/
 c---                        Firefly/GAMESS-UK/Gaussian; but Q-Chem is
 c---                        not supported), and Gabedit file.
+c--- Ver.3.3.0, 01/24/2016, Generalized Wiberg bond order
 c---
 c--- E-mail: qcband@gmail.com
 c-----------------------------------------------------------------------
@@ -48,8 +49,8 @@ c          7      8      9
 c---  Cartesian NC-/C-GTO; Spherical NC-/C-GTO
       dimension ncar(2),nsph(2)
 
-      dimension ICntrl(7)
-      logical doit
+      dimension ICntrl(8)
+      logical doit,ifopen,ifwbo
 
       character*57 fwfn,fnbo
       character*10 dt
@@ -59,8 +60,8 @@ c---  Cartesian NC-/C-GTO; Spherical NC-/C-GTO
 c-----------------------------------------------------------------------
 c---  head
 c-----------------------------------------------------------------------
-      ver="3.2.0"
-      dt="12/19/2015"
+      ver="3.3.0"
+      dt="01/24/2016"
       call headprt(ver,dt)
 
 c-----------------------------------------------------------------------
@@ -73,6 +74,8 @@ c-----------------------------------------------------------------------
       ICntrl(5)=0         ! Checking normalization for WFN
       ICntrl(6)=-1        ! Checking normalization for WFX
       ICntrl(7)=0         ! Checking normalization for NBO's .47
+      ICntrl(8)=0         ! Calculate Generalized Wiberg bond order when ICntrl(4) >= 0
+                          !
                           ! >0:  always performs the operation without asking the user
                           ! =0:  asks the user whether to perform the operation
                           ! <0:  always neglect the operation without asking the user
@@ -104,6 +107,7 @@ c
       iwfn=46             ! wfn file
       iwfx=47             ! wfx file
       inbo=48             ! NBO 47 file
+      iwbo=49             ! Generalized Wiberg bond order
 
       iatm=50             ! coordinates
       igto=51             ! basis functions
@@ -306,7 +310,6 @@ c-----------------------------------------------------------------------
       if(doit) then
         call genmdn(fwfn,inmd,iatm,igto,imol,imo0,ver,dt,nat,nmotot,
      *    ncarmo,ncar(2),ifc4)
-        close(inmd)
         write(*,8000)
       end if
 
@@ -376,7 +379,6 @@ c         WFN with ECP is supported only by MultiWFN at present
           call CheckWFN(nat,ncar(1),MaxL,info)
           if(info.ne.0) goto 9910
         end if
-        close(iwfn)
         write(*,8000)
       end if
 
@@ -430,7 +432,6 @@ c        if(doit) then
 c          call CheckWFX(info)
 c          if(info.ne.0) goto 9910
 c        end if
-c        close(iwfx)
 
         write(*,8000)
       end if
@@ -457,9 +458,33 @@ c-----------------------------------------------------------------------
 
       if(doit) then
         OPEN(inbo,FILE=fnbo)
+
+c---    Generalized Wiberg bond order?
+        if(ICntrl(8) .gt. 0)then
+          doit = .true.
+        else if(ICntrl(8) .eq. 0)then
+          write(*,"(/,
+     *    ' Do you want to calculate Wiberg bond order? ([Yes] / No)')")
+          write(*,"(' > ',$)")
+          read(*,"(a1)")yn
+          yn=L2U(yn)
+          if(yn.eq.'N')then
+            doit = .false.
+          else
+            doit = .true.
+          end if
+        else
+          doit = .false.
+        end if
+        ifwbo = doit
+        if(doit) then
+          lenth=Len_trim(fnbo)-3
+          OPEN(iwbo,FILE=(fnbo(1:lenth)//'_wbo.out'))
+        end if
+
         call cbsinf(igto,nat,nshell,nexp)
-        call gennbo(inbo,iatm,igto,imol,ver,dt,nat,nshell,nexp,ncar(2),
-     &   nmotot,MaxL,ifc4,info)
+        call gennbo(inbo,iwbo,iatm,igto,imol,ver,dt,nat,nshell,nexp,
+     &   ncar(2),nmotot,MaxL,ifc4,ifwbo,info)
         if(info.ne.0) goto 9910
 
 c       final step
@@ -487,13 +512,22 @@ c---    Check the NBO .47 file
           call CheckNBO(inbo,nat,ncar(2),sumocc*dble(ifc4),info)
           if(info.ne.0) goto 9910
         end if
-        close(inbo)
         write(*,8000)
       end if
 
 c-----------------------------------------------------------------------
 9910  continue
       close(imod)
+      inquire(unit=inmd,opened=ifopen)
+      if(ifopen) close(inmd)
+      inquire(unit=iwfn,opened=ifopen)
+      if(ifopen) close(iwfn)
+      inquire(unit=iwfx,opened=ifopen)
+      if(ifopen) close(iwfx)
+      inquire(unit=inbo,opened=ifopen)
+      if(ifopen) close(inbo)
+      inquire(unit=iwbo,opened=ifopen)
+      if(ifopen) close(iwbo)
       if(ICln .eq. 0)then
         close(iatm)
         close(igto)
@@ -531,13 +565,13 @@ c---  Read user's initialization parameters from m2a.ini
 c-----------------------------------------------------------------------
       Subroutine uinit(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp)
       Implicit Real*8(A-H,O-Z)
-      Dimension ICntrl(7)
+      Dimension ICntrl(8)
       character*100 ctmp
-      parameter(nkey=11)
+      parameter(nkey=12)
       character*9 keyword(nkey)
       data keyword/"MOLDEN=","WFN=","WFX=","NBO=","WFNCHECK=",
-     & "WFXCHECK=","NBOCHECK=","PROGRAM=","CLEAR=","IALLMO=",
-     & "NOSUPP="/
+     & "WFXCHECK=","NBOCHECK=","WBO=",
+     & "PROGRAM=","CLEAR=","IALLMO=","NOSUPP="/
 
       open(iini,file='m2a.ini',status='old',err=9000)
       rewind(iini)
@@ -562,27 +596,27 @@ c-----------------------------------------------------------------------
         if(ikey .eq. 0) cycle
 
         select case(ikey)
-          case(1:7)
+          case(1:8)
             if(keyvalue .gt. 0) then
               keyvalue=1
             else if(keyvalue .lt. 0) then
               keyvalue=-1
             end if
             ICntrl(ikey)=keyvalue
-          case(8)
+          case(9)
             if(keyvalue .lt. 0 .or. keyvalue .gt. nprog) keyvalue=0
             iprog=keyvalue
-          case(9)
+          case(10)
             if(keyvalue .ne. 0) keyvalue=1
             ICln=keyvalue
-          case(10)
+          case(11)
             if(keyvalue .gt. 0)then
               keyvalue=1
             else if(keyvalue .lt. 0)then
               keyvalue=-1
             end if
             IAllMO=keyvalue
-          case(11)
+          case(12)
             nosupp = 0
             if(keyvalue .ne. 0) nosupp = 1
         end select
@@ -623,8 +657,8 @@ c
 c 5) If ECP is used, you have to correct iz(2) in $COORD by hand.
 c
 c-----------------------------------------------------------------------
-      subroutine gennbo(inbo,iatm,igto,imol,ver,dt,natm,nshell,nexp,
-     & nbas,nmo,MaxL,ifc4,info)
+      subroutine gennbo(inbo,iwbo,iatm,igto,imol,ver,dt,natm,nshell,
+     & nexp,nbas,nmo,MaxL,ifc4,ifwbo,info)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       parameter(au2ang=0.529177249d0)
 c     scalmo will be used
@@ -632,6 +666,7 @@ c     scalmo will be used
       common/gtf/expg(maxpg),conf(maxpg),expgc(maxpgc),confc(maxpgc),
      *cfmo(maxpg),cn(maxpg),scalmo(maxpgc),
      *nbs,icnt(maxpg),ityp(maxpg),icmo(maxpg),ibstyp(maxpgc)
+      logical ifwbo
 c
       character*4 cnatm
       character*5 cnbas, ver
@@ -639,9 +674,12 @@ c
       character*100 ctmp
       dimension xyz(3,natm),ncomp(nshell),nprim(nshell),nptr(nshell),
      & ncshl(nshell),expn(nexp),con(nexp),nc(nbas),label(nbas)
-      dimension scr1(nbas*(nbas+1)/2),scr2(max(15*15,nbas))
+      allocatable scr1(:),scr2(:),scr3(:)
 
       lsph=0    ! always in Cartesian functions
+      ntt=nbas*(nbas+1)/2
+      nss=max(225,nbas*nbas)    ! 225 is required in OvDriv2
+      allocate(scr1(ntt),scr2(ntt),scr3(nss))
 
       rewind(inbo)
 
@@ -699,12 +737,79 @@ c     gennbo: $CONTRACT
 c     gennbo: $OVERLAP
       write(*,"(/,'  Calculating overlap matrix...')")
       call OvDriv2(inbo,nshell,nexp,nbas,MaxL,lsph,xyz,ncomp,nprim,
-     & nptr,ncshl,expn,con,scr1,scr2,info)
+     & nptr,ncshl,expn,con,scr1,scr3,info)
         if(info.ne.0) return
 
 c     gennbo: $DENSITY
       write(*,"('  Calculating density matrix...')")
-      call DenDriv(inbo,imol,nbas,nmo,dble(ifc4),scalmo,scr1,scr2)
+      call DenDriv(inbo,imol,nbas,nmo,dble(ifc4),scalmo,scr2,scr3)
+
+c     Generalized Wiberg bond order
+c       1. natm .le. nbas is required, which should be true.
+c       2. S (in scr1) and P (in scr2) will be destroyed.
+      if(ifwbo) then
+        write(*,"('  Calculating GWBO...')")
+        call GWBO(iwbo,nbas,natm,nc,scr1,scr2,scr3,scr1)
+      end if
+
+      deallocate(scr1,scr2,scr3)
+
+      return
+      end
+
+c-----------------------------------------------------------------------
+c--- Generalized Wiberg bond order index, which is Mayer's bond order
+c--- in the case of closed-shell.
+c-----------------------------------------------------------------------
+      subroutine GWBO(iwbo,N,Natm,icent,S,P,D,bo)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      dimension icent(*),S(*),P(*),D(N,N),bo(Natm,Natm)
+      parameter(NCol=10)
+1010  format(' Generalized Wiberg bond order indices in MO.',//,
+     &'   E(i,i) = Total WBO of atom i, and',/,
+     &'   E(i,j) = WBO between atoms i and j.',/)
+1020  format(/,' I_atm        ',10i8)
+1030  format(i6,8x,10f8.4)
+
+c     D = P * S
+      call AClear(N*N,D)
+      call LTxLT(N,P,S,D)
+
+c     D = D .* D^T
+      do i = 1, N
+        do j = 1, i-1
+          D(j,i) = D(i,j) * D(j,i)
+c          D(i,j) = D(j,i)    ! not used
+        end do
+      end do
+
+      call AClear(Natm*Natm,bo)
+      do i = 1, N
+        ii = icent(i)
+        do j = 1, i-1
+          jj = icent(j)
+          if(ii .ne. jj)then
+            bo(jj,ii) = bo(jj,ii) + D(j,i)
+c            bo(ii,jj) = bo(jj,ii)    ! not used
+            bo(ii,ii) = bo(ii,ii) + D(j,i)
+            bo(jj,jj) = bo(jj,jj) + D(j,i)
+          end if
+        end do
+      end do
+
+      rewind(iwbo)
+      write(iwbo,1010)
+
+      NBlock=(Natm-1)/NCol+1
+      do i=1,NBlock
+        iv1=(i-1)*NCol+1
+        iv2=min(i*NCol,Natm)
+        write(iwbo,1020)(k,k=iv1,iv2)
+        write(iwbo,*)
+        do j=iv1,Natm
+          write(iwbo,1030)j,(bo(k,j),k=iv1,min(iv2,j))
+        end do
+      end do
 
       return
       end
@@ -905,22 +1010,22 @@ C     First half of transformation:
       if(nptb .le. 3)then        ! S, P
         call acopy(nptb*npta,s,tmp)
       else if(nptb .eq. 6)then   ! Cart. D
-        call MatMul(2,nspb,nptb,npta,dmap,s,tmp)
+        call MatMult(2,nspb,nptb,npta,dmap,s,tmp)
       else if(nptb .eq. 10)then  ! Cart. F
-        call MatMul(2,nspb,nptb,npta,fmap,s,tmp)
+        call MatMult(2,nspb,nptb,npta,fmap,s,tmp)
       else if(nptb .eq. 15)then  ! Cart. G
-        call MatMul(2,nspb,nptb,npta,gmap,s,tmp)
+        call MatMult(2,nspb,nptb,npta,gmap,s,tmp)
       end if
 
 C     Second half of transformation:
       if(npta .le. 3)then        ! S, P
         call acopy(nspa*nspb,tmp,s)
       else if(npta .eq. 6)then   ! Cart. D
-        call MatMul(1,nspb,npta,nspa,tmp,dmap,s)
+        call MatMult(1,nspb,npta,nspa,tmp,dmap,s)
       else if(npta .eq. 10)then  ! Cart. F
-        call MatMul(1,nspb,npta,nspa,tmp,fmap,s)
+        call MatMult(1,nspb,npta,nspa,tmp,fmap,s)
       else if(npta .eq. 15)then  ! Cart. G
-        call MatMul(1,nspb,npta,nspa,tmp,gmap,s)
+        call MatMult(1,nspb,npta,nspa,tmp,gmap,s)
       end if
 
       return
@@ -933,7 +1038,7 @@ c            3: C = A * B^T
 c            4: C = A^T * B^T
 c     where C(MxN), op(A)(MxL), and op(B)(LxN)
 c-----------------------------------------------------------------------
-      subroutine MatMul(Mode,M,L,N,A,B,C)
+      subroutine MatMult(Mode,M,L,N,A,B,C)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       parameter(Zero=0.d0,One=1.d0)
       dimension A(*),B(*),C(*)
@@ -1527,14 +1632,15 @@ c-----------------------------------------------------------------------
       subroutine CheckNBO(inbo,NAtom,NC,TotE1,info)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       parameter(tole=5.d-5,tola=1.d-6)
-      dimension S(NC*(NC+1)/2),P(NC*(NC+1)/2)
       character*100 ctmp
+      allocatable S(:),P(:)
 
       info=1
       NTT=NC*(NC+1)/2
 
 c---  read S & P from the *.47 file
       rewind(inbo)
+      allocate(S(NTT),P(NTT))
       do while(.true.)
         read(inbo,"(a100)",err=5000,end=5000)ctmp
         if(index(ctmp,"$OVERLAP") .ne. 0) then
@@ -1562,7 +1668,8 @@ c---  read S & P from the *.47 file
 
       info=0
 
-5000  return
+5000  deallocate(S,P)
+      return
 
 6010  format(/,"  Reading overlap matrix...")
 6020  format("  Reading density matrix...")
@@ -1580,7 +1687,8 @@ c-----------------------------------------------------------------------
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       parameter(tole=5.d-5,tola=1.d-6)
       dimension r(3,MaxAtm),Expon(maxpg),CMO(maxpg),FNor(maxpg),
-     & ICent(maxpg),IType(maxpg),smat(maxpg*(1+maxpg)/2)
+     & ICent(maxpg),IType(maxpg)
+      allocatable smat(:)
 
       info=0
 
@@ -1591,6 +1699,7 @@ c---  read basis function from the *.WFN file
         if(info.ne.0) goto 5000
 c---  compute the overlap matrix
       write(*,6020)
+      allocate(smat(maxpg*(1+maxpg)/2))
       call OvDriver(smat,NGauss,IType,Expon,r,ICent,MaxL,info)
         if(info.ne.0) goto 5000
 c      call PrtMtr(NGauss, (NGauss*(NGauss+1)/2), 1, smat)
@@ -1616,7 +1725,8 @@ c---  compute the number of electrons
         if(DifA .gt. tola) write(*,6210)
       end if
 
-5000  return
+5000  deallocate(smat)
+      return
 
 6010  format(/,"  Reading basis functions...")
 6020  format("  Computing the overlap matrix...")
@@ -1990,7 +2100,8 @@ c-----------------------------------------------------------------------
      -    ' SPDF functions;',/,
      &'     thanks to Dr. Marat Talipov for testing)',/,
      &'  9) Priroda (thanks to Dr. Evgeniy Pankratyev for testing)',/,
-     &' 10) Dalton 2013 (HF/DFT/MP2/MCSCF with spherical functions)',/,
+     &' 10) Dalton (> 2013; HF/DFT/MP2/MCSCF with spherical',
+     -    ' functions)',/,
      &' 11) TeraChem (SPDF basis functions)',/,
      &' 12) ACES-II 2.9 (fix reorder.F, and insert [PROGRAM] ACES2',
      -    ' into MOLDEN file)',/,
@@ -4107,50 +4218,6 @@ c-----------------------------------------------------------------------
       return
       end
 
-cc-----------------------------------------------------------------------
-cc---  n!, n=0~5
-cc-----------------------------------------------------------------------
-c      function factorial(N)
-c      implicit real*8(a-h,o-z)
-c
-c      select case(N)
-c        case(0:1)
-c          factorial = 1.D0
-c        case(2)
-c          factorial = 2.D0
-c        case(3)
-c          factorial = 6.D0
-c        case(4)
-c          factorial = 24.D0
-c        case(5)
-c          factorial = 120.D0
-c      end select
-c
-c      return
-c      end
-c
-cc-----------------------------------------------------------------------
-cc---  Tlm1ff = (2N -1)!!, N=0~5
-cc-----------------------------------------------------------------------
-c      function Tlm1ff(N)
-c      implicit real*8(a-h,o-z)
-c
-c      select case(N)
-c        case(0:1)
-c          Tlm1ff = 1.D0
-c        case(2)
-c          Tlm1ff = 3.D0
-c        case(3)
-c          Tlm1ff = 15.D0
-c        case(4)
-c          Tlm1ff = 105.D0
-c        case(5)
-c          Tlm1ff = 945.D0
-c      end select
-c
-c      return
-c      end
-c
 c-----------------------------------------------------------------------
 c--- distance between two points
 c-----------------------------------------------------------------------
@@ -4339,6 +4406,61 @@ c-----------------------------------------------------------------------
       scr=a
       a=b
       b=scr
+
+      return
+      end
+
+c-----------------------------------------------------------------------
+c---  C = C + A * B, where A and B are symmetric in L.T. and C is in Sq.
+c-----------------------------------------------------------------------
+      subroutine LTxLT(N,A,B,C)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      parameter(half=0.5d0)
+      Dimension A(*),B(*),C(N,N)
+
+      l = 0
+      do i = 1, N
+      	i0 = i*(i-1)/2
+        do j = 1, i
+      	  j0 = j*(j-1)/2
+      	  l = l + 1
+      	  X = B(l)
+      	  if(i .eq. j) X = X * half
+          do k = 1, j
+            C(k,j) = C(k,j) + A(i0+k) * X
+          end do
+          do k = 1, j
+            C(k,i) = C(k,i) + A(j0+k) * X
+          end do
+
+          if(j .lt. N) then
+            j1 = j + 1
+            do k = j1, i
+              C(k,j) = C(k,j) + A(i0+k) * X
+            end do
+            k0 = (j1*(j1-1))/2 + j
+            do k = j1, i
+              C(k,i) = C(k,i) + A(k0) * X
+              k0 = k0 + k
+            end do
+
+            if(i .lt. N) then
+              i1 = i + 1
+              k0 = (i1*(i1-1))/2 + i
+              do k = i1, N
+                C(k,j) = C(k,j) + A(k0) * X
+                k0 = k0 + k
+              end do
+              k0 = (i1*(i1-1))/2 + j
+              do k = i1, n
+                C(k,i) = C(k,i) + A(k0) * X
+                k0 = k0 + k
+              end do
+            end if
+          end if
+
+        end do
+      end do
 
       return
       end
