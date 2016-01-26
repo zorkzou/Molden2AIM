@@ -57,16 +57,16 @@ c---  Cartesian NC-/C-GTO; Spherical NC-/C-GTO
       character*5 ver
       character*1 yn,L2U
 
-c-----------------------------------------------------------------------
-c---  head
-c-----------------------------------------------------------------------
+c///////////////////////////////////////////////////////////////////////
+c     head
+c///////////////////////////////////////////////////////////////////////
       ver="3.3.0"
-      dt="01/24/2016"
+      dt="01/26/2016"
       call headprt(ver,dt)
 
-c-----------------------------------------------------------------------
-c---  Initialization
-c-----------------------------------------------------------------------
+c///////////////////////////////////////////////////////////////////////
+c     Initialization
+c///////////////////////////////////////////////////////////////////////
       ICntrl(1)=1         ! Generating a standard Molden file in Cartesian functions
       ICntrl(2)=1         ! Generating a WFN file
       ICntrl(3)=-1        ! Generating a WFX file (not implemented)
@@ -92,9 +92,9 @@ c-----------------------------------------------------------------------
                           ! If one of the above program is always used, you can provide
                           ! iprog here without defining [Program] xxx in MOLDEN any more.
 
-c-----------------------------------------------------------------------
-c---  Port numbers
-c-----------------------------------------------------------------------
+c///////////////////////////////////////////////////////////////////////
+c     Port numbers
+c///////////////////////////////////////////////////////////////////////
 c     Do not modify the following port numbers.
 c
 c     Port numbers 4x: important input and output files
@@ -126,14 +126,14 @@ c
 c     read user's parameters from m2a.ini
       call uinit(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp)
 
-c-----------------------------------------------------------------------
-c---  program list which can save MOLDEN file
-c-----------------------------------------------------------------------
+c///////////////////////////////////////////////////////////////////////
+c     program list which can save MOLDEN file
+c///////////////////////////////////////////////////////////////////////
       if(nosupp .eq. 0) call SuppInf
 
-c-----------------------------------------------------------------------
-c---  define file names
-c-----------------------------------------------------------------------
+c///////////////////////////////////////////////////////////////////////
+c     define file names
+c///////////////////////////////////////////////////////////////////////
       call filename(imod,fwfn,fnbo)
 
       open(iatm,file='atm123456789.tmp')
@@ -142,17 +142,17 @@ c-----------------------------------------------------------------------
       open(ispn,file='spn123456789.tmp')
       open(imo0,file='mo0123456789.tmp')
 
-c-----------------------------------------------------------------------
-c---  search [Program] and get the name of the program.
-c---  [Program] is a special keyword for Molden2AIM.
-c---  iprog = 0 (default), 1 (orca), 2 (cfour), 3 (turbomole), ...
-c-----------------------------------------------------------------------
+c///////////////////////////////////////////////////////////////////////
+c     search [Program] and get the name of the program.
+c     [Program] is a special keyword for Molden2AIM.
+c     iprog = 0 (default), 1 (orca), 2 (cfour), 3 (turbomole), ...
+c///////////////////////////////////////////////////////////////////////
       call getprog(imod,nprog,pname,iprog)
 
-c-----------------------------------------------------------------------
-c---  backup molden file and delete some redundant (e.g. Pople GTO by
-c---  ACES2) or not useful data (e.g. unoccupied orb.s)
-c-----------------------------------------------------------------------
+c///////////////////////////////////////////////////////////////////////
+c     backup molden file and delete some redundant (e.g. Pople GTO by
+c     ACES2) or not useful data (e.g. unoccupied orb.s)
+c///////////////////////////////////////////////////////////////////////
       call backupatm(ifind)
       if(ifind.eq.0)goto 9910           ! STOP: [ATOMS] was not found
       call natom(nat,nchar,iunit,ierr)  ! iunit = 0: Ang. 1: Bohr 2: Error
@@ -239,9 +239,9 @@ c---  backup MO
      & 5x,'Number of orbitals to be printed: ',8x,i8)") nat,MaxL,
      & ncar(1),ncar(2),nsph(1),nsph(2),nmo
 
-c-----------------------------------------------------------------------
-c---  check
-c-----------------------------------------------------------------------
+c///////////////////////////////////////////////////////////////////////
+c     check
+c///////////////////////////////////////////////////////////////////////
       if(iprog.ne.0)then
         call chkbstyp(lsph,iprog,MaxL,ierr)
         if(ierr.ne.0) goto 9910
@@ -287,9 +287,9 @@ c        goto 9910
 c      end if
       write(*,8000)
 
-c-----------------------------------------------------------------------
-c---  write a standard Molden file in Cartesian basis functions
-c-----------------------------------------------------------------------
+c///////////////////////////////////////////////////////////////////////
+c     write a standard Molden file in Cartesian basis functions
+c///////////////////////////////////////////////////////////////////////
       if(ICntrl(1) .gt. 0)then
         doit = .true.
       else if(ICntrl(1) .eq. 0)then
@@ -313,9 +313,9 @@ c-----------------------------------------------------------------------
         write(*,8000)
       end if
 
-c-----------------------------------------------------------------------
-c---  write *.wfn
-c-----------------------------------------------------------------------
+c///////////////////////////////////////////////////////////////////////
+c     write *.wfn
+c///////////////////////////////////////////////////////////////////////
       if(ICntrl(2) .gt. 0)then
         doit = .true.
       else if(ICntrl(2) .eq. 0)then
@@ -382,9 +382,9 @@ c         WFN with ECP is supported only by MultiWFN at present
         write(*,8000)
       end if
 
-c-----------------------------------------------------------------------
-c---  write *.wfx
-c-----------------------------------------------------------------------
+c///////////////////////////////////////////////////////////////////////
+c     write *.wfx
+c///////////////////////////////////////////////////////////////////////
       if(ICntrl(3) .gt. 0)then
         doit = .true.
       else if(ICntrl(3) .eq. 0)then
@@ -436,9 +436,9 @@ c        end if
         write(*,8000)
       end if
 
-c-----------------------------------------------------------------------
-c---  write NBO *.47
-c-----------------------------------------------------------------------
+c///////////////////////////////////////////////////////////////////////
+c     write NBO *.47
+c///////////////////////////////////////////////////////////////////////
       if(ICntrl(4) .gt. 0)then
         doit = .true.
       else if(ICntrl(4) .eq. 0)then
@@ -4412,53 +4412,46 @@ c-----------------------------------------------------------------------
 
 c-----------------------------------------------------------------------
 c---  C = C + A * B, where A and B are symmetric in L.T. and C is in Sq.
+c     The following relationship is adopted:
+c     M_sq(j,i) = M_lt(j+(i-1)*i/2) if j .le. i
+c               = M_lt(i+(j-1)*j/2) if j .gt. i
 c-----------------------------------------------------------------------
       subroutine LTxLT(N,A,B,C)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       parameter(half=0.5d0)
       Dimension A(*),B(*),C(N,N)
 
-      l = 0
-      do i = 1, N
-      	i0 = i*(i-1)/2
-        do j = 1, i
+      do i = 1,N
+        i0 = i*(i-1)/2
+        X = A(i+i0)
+        do j = 1,i
+          C(j,i) = X * B(j+i0)
+        end do
+        do j = i + 1,N
       	  j0 = j*(j-1)/2
-      	  l = l + 1
-      	  X = B(l)
-      	  if(i .eq. j) X = X * half
-          do k = 1, j
-            C(k,j) = C(k,j) + A(i0+k) * X
+          C(j,i) = X * B(i+j0)
+        end do
+        do j = 1,i - 1
+      	  j0 = j*(j-1)/2
+          X = A(j+i0)
+          do k = 1,j
+            C(k,i) = C(k,i) + X * B(k+j0)
           end do
-          do k = 1, j
-            C(k,i) = C(k,i) + A(j0+k) * X
+          do k = j+1,N
+            k0 = k*(k-1)/2
+            C(k,i) = C(k,i) + X * B(j+k0)
           end do
-
-          if(j .lt. N) then
-            j1 = j + 1
-            do k = j1, i
-              C(k,j) = C(k,j) + A(i0+k) * X
-            end do
-            k0 = (j1*(j1-1))/2 + j
-            do k = j1, i
-              C(k,i) = C(k,i) + A(k0) * X
-              k0 = k0 + k
-            end do
-
-            if(i .lt. N) then
-              i1 = i + 1
-              k0 = (i1*(i1-1))/2 + i
-              do k = i1, N
-                C(k,j) = C(k,j) + A(k0) * X
-                k0 = k0 + k
-              end do
-              k0 = (i1*(i1-1))/2 + j
-              do k = i1, n
-                C(k,i) = C(k,i) + A(k0) * X
-                k0 = k0 + k
-              end do
-            end if
-          end if
-
+        end do
+        do j = i + 1,N
+      	  j0 = j*(j-1)/2
+          X = A(i+j0)
+          do k = 1,j
+            C(k,i) = C(k,i) + X * B(k+j0)
+          end do
+          do k = j+1,N
+            k0 = k*(k-1)/2
+            C(k,i) = C(k,i) + X * B(j+k0)
+          end do
         end do
       end do
 
