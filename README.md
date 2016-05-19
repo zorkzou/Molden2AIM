@@ -4,6 +4,10 @@
 Molden2AIM is a utility program which can be used to creat AIM-WFN and NBO-47 files from a Molden file.
 
 ## Recent Changes
+Version 3.3.1 (05/19/2016).
+
+1. Bug fix for MOLPRO's MOLDEN file with ECP.
+
 Version 3.3.0 (01/24/2016).
 
 1. Calculates the generalized Wiberg bond order indices (GWBO) in MO.
@@ -23,7 +27,7 @@ Version 3.1.0 (02/25/2015).
 
 ## Features
 
-* It converts the data format from Molden to AIM's WFN. The latter format can be read by [AIMPAC](http://www.chemistry.mcmaster.ca/aimpac/imagemap/imagemap.htm), [AIMPAC2](http://www.beaconresearch.org/AIMPAC2/index.html), [AIM2000](http://www.aim2000.de/), [AIMALL](http://aim.tkgristmill.com/), [AIM-UC](http://alfa.facyt.uc.edu.ve/quimicomp/), [DensToolKit](https://sites.google.com/site/jmsolanoalt/software/denstoolkit), [DGrid](http://www.cpfs.mpg.de/~kohout/dgrid.html), [MORPHY98](http://morphy.mib.man.ac.uk/), [Multiwfn](http://multiwfn.codeplex.com/), [PAMoC](http://www.istm.cnr.it/~barz/pamoc/), [ProMolden](http://azufre.quimica.uniovi.es/d-DensEl/), [TopChem](http://www.lct.jussieu.fr/pagesperso/pilme/topchempage.html), [TopMoD](http://www.lct.jussieu.fr/pagesperso/silvi/topmod.html), [Xaim](http://www.quimica.urv.es/XAIM/), and so on. The GAB file of [Gabedit](http://gabedit.sourceforge.net/) is compatible.
+* It converts the data format from Molden to AIM's WFN. The latter format can be read by [AIMPAC](http://www.chemistry.mcmaster.ca/aimpac/imagemap/imagemap.htm), [AIMPAC2](http://www.beaconresearch.org/AIMPAC2/index.html), [AIM2000](http://www.aim2000.de/), [AIMALL](http://aim.tkgristmill.com/), [AIM-UC](http://alfa.facyt.uc.edu.ve/quimicomp/), [DensToolKit](https://sites.google.com/site/jmsolanoalt/software/denstoolkit), [DGrid](http://www.cpfs.mpg.de/~kohout/dgrid.html), [MORPHY98](http://morphy.mib.man.ac.uk/), [Multiwfn](http://multiwfn.codeplex.com/), [ORBKIT](http://orbkit.github.io/), [PAMoC](http://www.istm.cnr.it/~barz/pamoc/), [ProMolden](http://azufre.quimica.uniovi.es/d-DensEl/), [TopChem](http://www.lct.jussieu.fr/pagesperso/pilme/topchempage.html), [TopMoD](http://www.lct.jussieu.fr/pagesperso/silvi/topmod.html), [Xaim](http://www.quimica.urv.es/XAIM/), and so on. The GAB file of [Gabedit](http://gabedit.sourceforge.net/) is compatible.
 * It saves [NBO](http://nbo6.chem.wisc.edu/)'s *.47 data file. One can do NBO analysis using the stand-alone [GENNBO](http://nbo6.chem.wisc.edu/) program. In addition, the following loops can be performed using [NBO](http://nbo6.chem.wisc.edu/). However the results may be different since [NBO6](http://nbo6.chem.wisc.edu/) saves natural bond orbitals (NBOs) into the MOLDEN file by default.
 
 <img src="https://raw.githubusercontent.com/zorkzou/Molden2AIM/master/m2a-loop.png" />

@@ -30,6 +30,7 @@ c---                        saved by Molden program (output from GAMESS/
 c---                        Firefly/GAMESS-UK/Gaussian; but Q-Chem is
 c---                        not supported), and Gabedit file.
 c--- Ver.3.3.0, 01/24/2016, Generalized Wiberg bond order
+c--- Ver.3.3.1, 05/19/2016, Bug fix for MOLPRO's MOLDEN file with ECP
 c---
 c--- E-mail: qcband@gmail.com
 c-----------------------------------------------------------------------
@@ -60,8 +61,8 @@ c---  Cartesian NC-/C-GTO; Spherical NC-/C-GTO
 c///////////////////////////////////////////////////////////////////////
 c     head
 c///////////////////////////////////////////////////////////////////////
-      ver="3.3.0"
-      dt="01/26/2016"
+      ver="3.3.1"
+      dt="05/19/2016"
       call headprt(ver,dt)
 
 c///////////////////////////////////////////////////////////////////////
@@ -582,7 +583,7 @@ c-----------------------------------------------------------------------
         if(ctmp(1:1) .eq. "$" .or. ctmp(1:1) .eq. "%" .or.
      &     ctmp(1:1) .eq. "!" .or. len_trim(ctmp) .eq. 0) cycle
 
-        call charl2u(ctmp,100)
+        call charl2u(ctmp)
         ikey=0
         do i=1,nkey
           if(index(ctmp,trim(keyword(i))) .ne. 0) then
@@ -1603,11 +1604,11 @@ c     iname is unknown
       iname = 0
       rewind(imod)
 100   read(imod,"(100a)",end=9999)tmp1
-      call charl2u(tmp1,100)
+      call charl2u(tmp1)
       if(index(tmp1,'[PROGRAM]').ne.0) goto 200
       goto 100
 200   read(imod,"(100a)",end=9999)tmp2
-      call charl2u(tmp2,100)
+      call charl2u(tmp2)
 c     FORMAT:
 c     [PROGRAM] pname
 c          or
@@ -2122,7 +2123,8 @@ c-----------------------------------------------------------------------
      &)")
 
       write(*,"(/,
-     &' Programs to be tested:      1) StoBe      2) NRLMOL')")
+     &' Programs to be tested:      1) NRLMOL     2) PySCF      ',
+     &'3) StoBe')")
 
       write(*,"(/,
      &' Unsupported programs:       1) ADF        2) Jaguar')")
@@ -2206,7 +2208,7 @@ c       Gabedit doesn't recognize UPPERCASE keywords!
 600     read(imo0,"(100a)")tmp
         j=index(tmp,'=')
         if(j.ne.0)then
-          call charl2u(tmp,j-1)
+          call charl2u(tmp)
 c         Occup=
           if(index(tmp(1:j-1),'OCCUP').ne.0)then
             read(tmp(j+1:),*)x
@@ -2271,13 +2273,13 @@ c-----------------------------------------------------------------------
      &'Please use',/,3x,
      &'AIM2000, AIMALL, AIMPAC, AIMPAC2, AIM-UC, CheckDen, ',
      -'DensToolKit, DGrid,',/,3x,
-     &'MORPHY, MultiWFN, PAMoC, ProMolden, TopChem, TopMoD, ',
+     &'MORPHY, MultiWFN, ORBKIT, PAMoC, ProMolden, TopChem, TopMoD, ',
      -'or XAIM',/)")
       else
         write(*,"(/,2x,
      &'G-functions are found! Please use',/,3x,
-     &'AIM2000 (Ver. 2013), AIMALL, AIM-UC, DGrid, MultiWFN, or ',
-     -'TopChem',/)")
+     &'AIM2000 (Ver. 2013), AIMALL, AIM-UC, DGrid, MultiWFN, ORBKIT,',
+     -' or TopChem',/)")
       end if
       write(*,"('  to analyse the electron density distribution.')")
 
@@ -2297,11 +2299,11 @@ c     &'  File Name = ',a)")trim(fwfn)
 c      else if(MaxL .lt. 4)then
 c        write(*,"(/,2x,
 c     &'Please use',/,3x,
-c     &'AIMALL, DensToolKit, or MultiWFN',/)")
+c     &'AIMALL, DensToolKit, MultiWFN, or ORBKIT',/)")
 c      else
 c        write(*,"(/,2x,
 c     &'G-functions are found! Please use',/,3x,
-c     &'AIMALL or MultiWFN',/)")
+c     &'AIMALL, MultiWFN, or ORBKIT',/)")
 c      end if
 c      write(*,"('  to analyse the electron density distribution.')")
 c
@@ -2356,7 +2358,7 @@ c--- count the number of CGTO
       rewind(imod)
 
 500   read(imod,"(100a)",end=550)tmp
-      call charl2u(tmp,100)
+      call charl2u(tmp)
       if(index(tmp,'[MO]').ne.0) goto 600
       goto 500
 
@@ -2366,7 +2368,7 @@ c--- count the number of CGTO
 
 600   read(imod,"(100a)",end=9999)tmp
       if(len_trim(tmp).eq.0) goto 600
-c      call charl2u(tmp,100)
+c      call charl2u(tmp)
       if(index(tmp,'=').ne.0) goto 600
       if(index(tmp,'[').ne.0) goto 9999
 
@@ -2406,7 +2408,7 @@ cc--- file, but the keywords [5d], [7f], and [9g] are not specified.
 cc      rewind(imod)
 cc
 cc100   read(imod,"(100a)",end=200)tmp
-cc      call charl2u(tmp,100)
+cc      call charl2u(tmp)
 cc      if(index(tmp,'[').ne.0 .and. index(tmp,']').ne.0) then
 cc        if( index(tmp,'[5D').ne.0 .or. index(tmp,'[7F').ne.0 .or.
 cc     *      index(tmp,'[9G').ne.0 ) goto 9999
@@ -2418,7 +2420,7 @@ cc--- count the number of CGTO
 c      rewind(imod)
 c
 c500   read(imod,"(100a)",end=550)tmp
-c      call charl2u(tmp,100)
+c      call charl2u(tmp)
 c      if(index(tmp,'[MO]').ne.0) goto 600
 c      goto 500
 c
@@ -2427,12 +2429,12 @@ c      ifmo=0
 c      return
 c
 c600   read(imod,"(100a)",end=9999)tmp
-c      call charl2u(tmp,100)
+c      call charl2u(tmp)
 c      if(index(tmp,'OCCUP').ne.0) goto 700
 c      goto 600
 c
 c700   read(imod,"(100a)",end=9999)tmp
-cc      call charl2u(tmp,100)
+cc      call charl2u(tmp)
 c      if(index(tmp,'[').ne.0 .or. index(tmp,'=').ne.0 .or.
 c     *   len_trim(tmp).eq.0) then
 c        goto 9999
@@ -2727,6 +2729,55 @@ c-----------------------------------------------------------------------
       end
 
 c-----------------------------------------------------------------------
+c---  Mode = 0 : returns nuclear charge zchar for an element symbol "el"
+c---             iza is not used.
+c---    .ne. 0 : returns element symbol "el" for nuclear charge iza
+c---             zchar is not used.
+c-----------------------------------------------------------------------
+      subroutine ElemZA(Mode,el,iza,zchar)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      parameter (maxza=120)
+      character*3 el,atomlib(maxza)
+      data (atomlib(i),i=1,50) /
+     1'H  ','HE ','LI ','BE ','B  ','C  ','N  ','O  ','F  ','NE ',
+     2'NA ','MG ','AL ','SI ','P  ','S  ','CL ','AR ','K  ','CA ',
+     3'SC ','TI ','V  ','CR ','MN ','FE ','CO ','NI ','CU ','ZN ',
+     4'GA ','GE ','AS ','SE ','BR ','KR ','RB ','SR ','Y  ','ZR ',
+     5'NB ','MO ','TC ','RU ','RH ','PD ','AG ','CD ','IN ','SN '/
+      data (atomlib(i),i=51,100) /
+     6'SB ','TE ','I  ','XE ','CS ','BA ','LA ','CE ','PR ','ND ',
+     7'PM ','SM ','EU ','GD ','TB ','DY ','HO ','ER ','TM ','YB ',
+     8'LU ','HF ','TA ','W  ','RE ','OS ','IR ','PT ','AU ','HG ',
+     9'TL ','PB ','BI ','PO ','AT ','RN ','FR ','RA ','AC ','TH ',
+     A'PA ','U  ','NP ','PU ','AM ','CM ','BK ','CF ','ES ','FM '/
+      data (atomlib(i),i=101,maxza) /
+     B'MD ','NO ','LR ','RF ','DB ','SG ','BH ','HS ','MT ','DS ',
+     C'RG ','CN ','UUT','FL ','UUP','LV ','UUS','UUO','UUE','UBN'/
+      save atomlib
+
+      if (Mode .eq. 0) then
+
+        call charl2u(el)
+        zchar = 0.d0
+        do i=1,maxza
+          if(index(el,atomlib(i)) .ne. 0)then
+            zchar = dble(i)
+            exit
+          end if
+        end do
+
+      else
+
+        el = "???"
+        if(iza .gt. 0 .and. iza .le. maxza) el = adjustl(atomlib(iza))
+        call charu2l(el(2:3))
+
+      end if
+
+      return
+      end
+
+c-----------------------------------------------------------------------
 c--- write coordinates to WFN.
 c-----------------------------------------------------------------------
       subroutine writeatm(iwfn,iatm,nat)
@@ -2928,7 +2979,7 @@ c--- pass AIMALL's examination if there are f, g functions.
 
 200   read(imo0,"(100a)",end=500)tmp
       if(len_trim(tmp).eq.0) goto 200
-      call charl2u(tmp,100)
+      call charl2u(tmp)
       if(index(tmp,'ENE').ne.0)then
         is=index(tmp,'=')
 c       in ACES2-F, there may be " Ene=   ********"
@@ -3008,7 +3059,7 @@ c-----------------------------------------------------------------------
 
 200   read(imo0,"(100a)",end=500)tmp
       if(len_trim(tmp).eq.0) goto 200
-      call charl2u(tmp,100)
+      call charl2u(tmp)
       if(index(tmp,'ENE').ne.0)then
         is=index(tmp,'=')
 c       in ACES2-F, there may be " Ene=   ********"
@@ -3060,7 +3111,7 @@ c-----------------------------------------------------------------------
       rewind(imod)
 
 100   read(imod,"(100a)",end=9999)tmp
-      call charl2u(tmp,100)
+      call charl2u(tmp)
       if(index(tmp,'[MO]').ne.0)then
         if(ishrt .eq. 0)then
           goto 200
@@ -3215,7 +3266,7 @@ c--- step 1: backup original GTO
       rewind(igtoin)
 
 100   read(imod,"(100a)",end=150)tmp
-      call charl2u(tmp,100)
+      call charl2u(tmp)
 c     [GTO]: MOLDEN file; [BASIS]: GABEDIT file
       find = index(tmp,'[GTO]').ne.0 .or. index(tmp,'[BASIS]').ne.0
       if(find)then    ! the first several blank lines are skipped
@@ -3233,7 +3284,7 @@ c     [GTO]: MOLDEN file; [BASIS]: GABEDIT file
       return
 
 200   read(imod,"(100a)",end=500)tmp
-201   call charl2u(tmp,100)
+201   call charl2u(tmp)
       if(index(tmp,'[').ne.0) then
         if(ispace.eq.0)write(igtoin,"(' E 0')")    ! E = END
         goto 500
@@ -3453,6 +3504,7 @@ c-----------------------------------------------------------------------
       subroutine backupatm(ifatm)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       character*100 tmp
+      character*3 element
 
       imod=44
       iatm=50
@@ -3461,8 +3513,8 @@ c-----------------------------------------------------------------------
       rewind(imod)
       rewind(iatm)
 
-100   read(imod,"(100a)",end=150)tmp
-      call charl2u(tmp,100)
+100   read(imod,"(100a)",end=1010)tmp
+      call charl2u(tmp)
       if(index(tmp,'[ATOMS]').ne.0) then
         if(index(tmp,'ANGS').ne.0)then
           iunit=0
@@ -3475,21 +3527,49 @@ c-----------------------------------------------------------------------
       end if
       goto 100
 
-150   write(*,*)"*** Wrong! [ATOMS] can not be found!"
-      ifatm=0
-      return
-
 200   write(iatm,"(i1)")iunit
 201   read(imod,"(100a)",end=500)tmp
-      call charl2u(tmp,100)
+      call charl2u(tmp)
       if(index(tmp,'[').ne.0) then
         goto 500
       else
-        write(iatm,"(a)")trim(tmp)
+cooo        write(iatm,"(a)")trim(tmp)
+
+c       core electrons by ECP may be not inclued in iz (eg. in Molpro), so iz should be obtained from element
+c       read element_name number atomic_number x y z
+        read(tmp,*,err=1020,end=1020)element,ia,iz,x,y,z
+c       eliminate non-letter characters for a special case, for example, O_1 (Dalton), C1 (Cadpac)
+        call rmnumb(3,element)
+        call ElemZA(0,element,za,za)
+        iz = nint(za)
+
+        write(iatm,"(a3,1x,2i6,3f24.12)")element,ia,iz,x,y,z
       end if
       goto 201
 
-500   continue
+500   return
+
+1010  write(*,*)"*** Wrong! [ATOMS] can not be found!"
+      ifatm=0
+      return
+1020  write(*,*)"*** Error when reading the [ATOMS] section!"
+      ifatm=0
+      return
+
+      end
+
+c-----------------------------------------------------------------------
+c---  replace non-letter characters by space
+c-----------------------------------------------------------------------
+      subroutine rmnumb(N,cha)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      character*(*) cha
+
+      do i=1,N
+        if((ichar(cha(i:i)).ge.65) .and. (ichar(cha(i:i)).le.90)) cycle     ! A-Z
+        if((ichar(cha(i:i)).ge.97) .and. (ichar(cha(i:i)).le.122)) cycle    ! a-z
+        cha(i:i)=' '
+      end do
 
       return
       end
@@ -3653,12 +3733,11 @@ c--- "atom, x, y, z"
 c-----------------------------------------------------------------------
 c--- tmp --> TMP
 c-----------------------------------------------------------------------
-      subroutine charl2u(tmp,nc)
+      subroutine charl2u(tmp)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       character*(*) tmp
       character*1 L2U
 
-c      do i=1,nc
       do i=1,len_trim(tmp)
         tmp(i:i)=L2U(tmp(i:i))
       end do
@@ -3667,7 +3746,22 @@ c      do i=1,nc
       end
 
 c-----------------------------------------------------------------------
-c--- l-->L
+c---  CHA --> cha
+c-----------------------------------------------------------------------
+      subroutine charu2l(cha)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      character*(*) cha
+      character*1 U2L
+
+      do i=1,len_trim(cha)
+        cha(i:i)=U2L(cha(i:i))
+      end do
+
+      return
+      end
+
+c-----------------------------------------------------------------------
+c---  l --> L
 c-----------------------------------------------------------------------
       function L2U(letter)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
@@ -3676,6 +3770,20 @@ c-----------------------------------------------------------------------
         L2U=char(ichar(letter)-32)
       else
         L2U=letter
+      endif
+      return
+      end
+
+c-----------------------------------------------------------------------
+c---  L --> l
+c-----------------------------------------------------------------------
+      function U2L(letter)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      character*1 letter,U2L
+      if((ichar(letter).ge.65).and.(ichar(letter).le.90))then
+        U2L=char(ichar(letter)+32)
+      else
+        U2L=letter
       endif
       return
       end
