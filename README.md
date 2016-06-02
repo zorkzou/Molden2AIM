@@ -7,7 +7,7 @@ Molden2AIM is a utility program which can be used to creat AIM-WFN, AIM-WFX, and
 Version 4.0.0 (06/02/2016).
 
 1. Generates WFX file.
-2. Operation of MOLDEN file with cores has been improved through a '[Core]' segment.
+2. Operation of MOLDEN file with cores has been improved through a `[Core]` segment.
 3. Generates EDF data in the WFX file in the case of ECP or MCP. Simple tight core density function is used at present.
 
 Version 3.3.1 (05/19/2016).
@@ -69,19 +69,22 @@ here `F90` can be `gfortran`, `g95`, `pgf90`, `ifort`, or other FORTRAN90 compil
 
 ## ECP/MCP
 
-In the case of ECP or MCP, a segment of '[Core]' should be defined in the MOLDEN file. The format is
-    '[Core]'
-    'Iatom : Ncore'     or    'Element: Ncore'
-...
+In the case of ECP or MCP, a segment of `[Core]` should be defined in the MOLDEN file. The format is
+
+    `[Core]`
+    `Iatom : Ncore`     or    `Element: Ncore`
+
 where Ncore is the number of core electrons replaced by ECP or MCP. Atom/element with Ncore=0 can be ignored.
 
 For example, a cluster with atoms N_1, N_2, N_3, Pt_4, and Pt_5, it can be
+
     [Core]
     Pt: 60
     N : 2
     2 : 0
 
 This means that the numbers of core electron are 60 in Pt_4 and Pt_5 and 2 in N_1 and N_3. In N_2 the number of core electron is set to 2 but then reset to 0. It is equivalent to
+
     [Core]
     1 : 2
     3 : 2
