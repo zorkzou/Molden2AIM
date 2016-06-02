@@ -75,7 +75,7 @@ In the case of ECP or MCP, a segment of `[Core]` should be defined in the MOLDEN
     Iatom : Ncore     or    Element: Ncore
     ...
 
-where Ncore is the number of core electrons replaced by ECP or MCP. Atom/element with Ncore=0 can be ignored. For example, a cluster with atoms N_1, N_2, N_3, Pt_4, and Pt_5, it can be
+where Ncore is the number of core electrons replaced by ECP or MCP. Atom/element with Ncore=0 can be ignored. For example, for a cluster with the atoms N_1, N_2, N_3, Pt_4, and Pt_5, it can be
 
     [Core]
     Pt: 60
