@@ -34,6 +34,9 @@ c--- Ver.3.3.1, 05/19/2016, Bug fix for MOLPRO's MOLDEN file with ECP.
 c--- Ver.4.0.0, 06/02/2016, Generates WFX file;
 c---                        Operation of MOLDEN file with cores has been
 c---                        improved.
+c--- Ver.4.0.1, 06/11/2016, Supports [PSEUDO] data block of MOLDEN;
+c---                        WFX: computs spin multiplicity if the number
+c---                        of alpha and beta electrons are known.
 c---
 c--- E-mail: qcband@gmail.com
 c-----------------------------------------------------------------------
@@ -65,8 +68,8 @@ c---  Cartesian NC-/C-GTO; Spherical NC-/C-GTO
 c///////////////////////////////////////////////////////////////////////
 c     head
 c///////////////////////////////////////////////////////////////////////
-      ver="4.0.0"
-      dt="06/02/2016"
+      ver="4.0.1"
+      dt="06/11/2016"
       call headprt(ver,dt)
 
 c///////////////////////////////////////////////////////////////////////
@@ -910,7 +913,8 @@ c      call PrtMtr(nbas,NTTS,1,Den)
       end
 
 c-----------------------------------------------------------------------
-c---  read core information from the [Core] block defined by the user
+c---  read core information from the [CORE] or [PSEUDO] block defined by
+c     the user
 c-----------------------------------------------------------------------
       subroutine RdCore(iatm,imod,icor,nat,ncor,ierr)
       implicit real*8 (a-h,o-z)
@@ -921,14 +925,19 @@ c-----------------------------------------------------------------------
 
       ierr = 1
       ncor = 0
+      ifrm = 0    ! 0 [CORE] or 1 [PSEUDO]
 
       rewind(imod)
-c     search [Core]
+c     search [Core] / [PSEUDO]
       do while(.true.)
         read(imod,"(a100)",end=1100)ctmp
         if(LEN_TRIM(ctmp) .eq. 0 .or. index(ctmp,'[') .eq. 0) cycle
         call charl2u(ctmp)
         if(index(ctmp,'[CORE]') .gt. 0) exit
+        if(index(ctmp,'[PSEUDO]') .gt. 0) then
+          ifrm = 1
+          exit
+        end if
       end do
 
       ic=0
@@ -939,47 +948,80 @@ c     search [Core]
       end do
 
 c     read core information
-      do while(.true.)
-        read(imod,"(a100)",end=1000)ctmp
-        if(LEN_TRIM(ctmp) .eq. 0 .or. index(ctmp,'[') .ne. 0) goto 1000
+      if(ifrm .eq. 0) then
+c       [CORE]
+        do while(.true.)
+          read(imod,"(a100)",end=1000)ctmp
+          if(LEN_TRIM(ctmp) .eq. 0 .or. index(ctmp,'[') .ne. 0)goto 1000
 
-        k=index(ctmp,":")
-        if(k .le. 1) goto 9010
+          k=index(ctmp,":")
+          if(k .le. 1) goto 9010
 
-        read(ctmp(k+1:),*,err=9010,end=9010) icore
-c       check: icore
-        if(icore .lt. 0 .or. icore .gt. 120) goto 9035
+          read(ctmp(k+1:),*,err=9010,end=9010) icore
+c         check: icore
+          if(icore .lt. 0 .or. icore .gt. 120) goto 9035
 
-        read(ctmp(1:k-1),*,err=9010,end=9010) atom
-        call charl2u(atom)
-        call trulen(atom,I,J,K)
-        K=ichar(atom(I:I))
-        if( (K .ge. 65) .and. (K .le. 90) ) then
-          do L=I,J
-            K=ichar(atom(L:L))
-            if( (K .lt. 65) .or. (K .gt. 90) ) goto 9020
-          end do
-          call ElemZA(0,atom,za,za)
-          IZ = nint(za)
-c         check: ZA > icore
-          if(IZ .le. icore) goto 9040
-          ifind = .false.
-c         search all atoms with ZA = IZ
-          do L=1,nat
-            if(ic(1,L) .eq. IZ) then
-              ifind = .true.
-              ic(2,L) = icore
-            end if
-          end do
-          if(.not. ifind) goto 9050
+          read(ctmp(1:k-1),*,err=9010,end=9010) atom
+          call charl2u(atom)
+          call trulen(atom,I,J,K)
+          K=ichar(atom(I:I))
+          if( (K .ge. 65) .and. (K .le. 90) ) then
+            do L=I,J
+              K=ichar(atom(L:L))
+              if( (K .lt. 65) .or. (K .gt. 90) ) goto 9020
+            end do
+            call ElemZA(0,atom,za,za)
+            IZ = nint(za)
+c           check: ZA > icore
+            if(IZ .le. icore) goto 9040
+            ifind = .false.
+c           search all atoms with ZA = IZ
+            do L=1,nat
+              if(ic(1,L) .eq. IZ) then
+                ifind = .true.
+                ic(2,L) = icore
+              end if
+            end do
+            if(.not. ifind) goto 9050
 
-        else if( (K .ge. 48) .and. (K .le. 57) ) then
-          do L=I,J
-            K=ichar(atom(L:L))
-            if( (K .lt. 48) .or. (K .gt. 57) ) goto 9020
-          end do
-          read(atom,*)IA
+          else if( (K .ge. 48) .and. (K .le. 57) ) then
+            do L=I,J
+              K=ichar(atom(L:L))
+              if( (K .lt. 48) .or. (K .gt. 57) ) goto 9020
+            end do
+            read(atom,*)IA
+            IZ = ic(1,IA)
+
+c           check: IA <= NAtom
+            if(IA .lt. 1 .or. IA .gt. nat) goto 9030
+c           check: ZA(IA) > icore
+            if(IZ .le. icore) goto 9040
+
+            ic(2,IA) = icore
+
+          else
+            goto 9020
+          end if
+
+c         check ZA vs. icore: icore must be an even number (4f & 5f metals are excluded)
+c          if(IZ .lt. 57 .or. IZ .gt. 103 .or.
+c     &      (IZ .gt. 71 .and. IZ .lt. 89) ) then
+          if(mod(icore,2) .ne. 0) goto 9060
+c          end if
+        end do
+
+      else
+c       [PSEUDO]
+        do while(.true.)
+          read(imod,"(a100)",end=1000)ctmp
+          if(LEN_TRIM(ctmp) .eq. 0 .or. index(ctmp,'[') .ne. 0)goto 1000
+
+          read(ctmp,*,err=9015,end=9015) atom,IA,icore
+
           IZ = ic(1,IA)
+          icore = IZ - icore
+c         check: icore
+          if(icore .lt. 0 .or. icore .gt. 120) goto 9035
 
 c         check: IA <= NAtom
           if(IA .lt. 1 .or. IA .gt. nat) goto 9030
@@ -988,19 +1030,18 @@ c         check: ZA(IA) > icore
 
           ic(2,IA) = icore
 
-        else
-          goto 9020
-        end if
+c         check ZA vs. icore: icore must be an even number (4f & 5f metals are excluded)
+c          if(IZ .lt. 57 .or. IZ .gt. 103 .or.
+c     &      (IZ .gt. 71 .and. IZ .lt. 89) ) then
+          if(mod(icore,2) .ne. 0) goto 9060
+c          end if
+        end do
 
-c       check ZA vs. icore: icore must be an even number (4f & 5f metals are excluded)
-c        if(IZ .lt. 57 .or. IZ .gt. 103 .or.
-c     &    (IZ .gt. 71 .and. IZ .lt. 89) ) then
-   	    if(mod(icore,2) .ne. 0) goto 9060
-c     	  end if
-      end do
+      end if
 
 1000  continue
 
+c     write data to icor
       ncor = 0
       rewind(icor)
       do i=1,nat
@@ -1008,6 +1049,7 @@ c     	  end if
         if(ic(2,i) .gt. 0) ncor = ncor + ic(2,i)
       end do
 
+c     print core information
       if(ncor .gt. 0) then
         write(*,"(//,
      &  '  Core information',//,
@@ -1028,6 +1070,11 @@ c     	  end if
 
 9010  write(*,"(//,' ### Error when reading core data! The format is',/,
      &  5x,'Iatom: Ncore  or  Element: Ncore')")
+      write(*,"(2x,a)")trim(ctmp)
+      return
+
+9015  write(*,"(//,' ### Error when reading core data! The format is',/,
+     &  5x,'Name  IAtom  ZA-Ncore')")
       write(*,"(2x,a)")trim(ctmp)
       return
 
@@ -1165,7 +1212,7 @@ c-----------------------------------------------------------------------
       dimension A(*)
 
       do i=1,N
-      	if(abs(A(i)) .lt. eps) A(i)=zero
+        if(abs(A(i)) .lt. eps) A(i)=zero
       end do
 
       return
@@ -2587,11 +2634,18 @@ c---  coordinates
 
 c     #core
       if(iecp .gt. 0)then
-        write(inmd,"('[CORE]')")
+cooo        write(inmd,"('[CORE]')")
+cooo        rewind(icor)
+cooo        do i=1,nat
+cooo          read(icor,*) iz, j
+cooo          if(j .gt. 0) write(inmd,"(i5,' : ',i5)") i,j
+cooo        end do
+        write(inmd,"('[PSEUDO]')")
         rewind(icor)
         do i=1,nat
           read(icor,*) iz, j
-          if(j .gt. 0) write(inmd,"(i5,' : ',i5)") i,j
+          call ElemZA(1,tmp,iz,tmp)
+          write(inmd,"(a3,1x,2i6)") tmp(1:3), i, iz-j
         end do
       end if
 
@@ -3049,7 +3103,12 @@ c     Number of Beta Electrons
 
 c     Electronic Spin Multiplicity (optional)
       call wfxlab(iwfx,0,"Electronic Spin Multiplicity")
-      write(iwfx,"(' UNKNOWN')")
+      if(prtspn) then
+        ix = nint(abs(elea-eleb)) + 1
+        write(iwfx,"(i8)") ix
+      else
+        write(iwfx,"(' UNKNOWN')")
+      end if
       call wfxlab(iwfx,1,"Electronic Spin Multiplicity")
 
 c     Number of Core Electrons
@@ -5335,11 +5394,11 @@ c-----------------------------------------------------------------------
           C(j,i) = X * B(j+i0)
         end do
         do j = i + 1,N
-      	  j0 = j*(j-1)/2
+          j0 = j*(j-1)/2
           C(j,i) = X * B(i+j0)
         end do
         do j = 1,i - 1
-      	  j0 = j*(j-1)/2
+          j0 = j*(j-1)/2
           X = A(j+i0)
           do k = 1,j
             C(k,i) = C(k,i) + X * B(k+j0)
@@ -5350,7 +5409,7 @@ c-----------------------------------------------------------------------
           end do
         end do
         do j = i + 1,N
-      	  j0 = j*(j-1)/2
+          j0 = j*(j-1)/2
           X = A(i+j0)
           do k = 1,j
             C(k,i) = C(k,i) + X * B(k+j0)
