@@ -59,7 +59,7 @@ here `F90` can be `gfortran`, `g95`, `pgf90`, `ifort`, or other FORTRAN90 compil
 1. Put `molden2aim.exe`, MOLDEN file, and (optional) `m2a-dos.ini` into the same folder.
 2. Rename `m2a-dos.ini` to `m2a.ini`.
 3. If necessary, insert a `[Program] program_name` line into the MOLDEN file, or edit the program parameter in `m2a.ini` (you can also setup other parameters there).
-4. If ECP or MCP is used, insert a `[Core]` segment into the MOLDEN file. See below for the format and examples.
+4. If ECP or MCP is used, insert a `[Core]` or `[Pseudo]` segment into the MOLDEN file. See below for the format and examples.
 5. Double-click `molden2aim.exe`, and then type in the name of the MOLDEN file.
 
 -   Unix/Linux/MacOS
@@ -67,7 +67,7 @@ here `F90` can be `gfortran`, `g95`, `pgf90`, `ifort`, or other FORTRAN90 compil
 1. Put `molden2aim.exe`, MOLDEN file, and (optional) `m2a-unix.ini` into the same folder.
 2. Rename `m2a-unix.ini` to `m2a.ini`.
 3. If necessary, insert a `[Program] program_name` line into the MOLDEN file, or edit the program parameter in `m2a.ini` (you can also setup other parameters there).
-4. If ECP or MCP is used, insert a `[Core]` segment into the MOLDEN file. See below for the format and examples.
+4. If ECP or MCP is used, insert a `[Core]` or `[Pseudo]` segment into the MOLDEN file. See below for the format and examples.
 5. In the terminal, type in
 
     > ./molden2aim.exe
