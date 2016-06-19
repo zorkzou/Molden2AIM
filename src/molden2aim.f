@@ -35,8 +35,9 @@ c--- Ver.4.0.0, 06/02/2016, Generates WFX file;
 c---                        Operation of MOLDEN file with cores has been
 c---                        improved.
 c--- Ver.4.0.1, 06/11/2016, Supports [PSEUDO] data block of MOLDEN;
-c---                        WFX: computs spin multiplicity if the number
-c---                        of alpha and beta electrons are known.
+c---                        WFX: computs spin multiplicity if the
+c---                        numbers of alpha and beta electrons are
+c---                        known.
 c---
 c--- E-mail: qcband@gmail.com
 c-----------------------------------------------------------------------

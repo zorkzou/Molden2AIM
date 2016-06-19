@@ -7,7 +7,7 @@ Molden2AIM is a utility program which can be used to creat AIM-WFN, AIM-WFX, and
 Version 4.0.1 (06/11/2016).
 
 1. Supports `[PSEUDO]` data block of MOLDEN.
-2. WFX: computs spin multiplicity if the number of alpha and beta electrons are known.
+2. WFX: computs spin multiplicity if the numbers of alpha and beta electrons are known.
 
 Version 4.0.0 (06/02/2016).
 
