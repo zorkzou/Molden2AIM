@@ -38,6 +38,7 @@ c--- Ver.4.0.1, 06/11/2016, Supports [PSEUDO] data block of MOLDEN;
 c---                        WFX: computs spin multiplicity if the
 c---                        numbers of alpha and beta electrons are
 c---                        known.
+c--- Ver.4.0.2, 12/05/2016, Bug fix for "Ene =" in TeraChem's MOLDEN
 c---
 c--- E-mail: qcband@gmail.com
 c-----------------------------------------------------------------------
@@ -65,12 +66,13 @@ c---  Cartesian NC-/C-GTO; Spherical NC-/C-GTO
       character*10 dt
       character*5 ver
       character*1 yn,L2U
+      character*100 stline
 
 c///////////////////////////////////////////////////////////////////////
 c     head
 c///////////////////////////////////////////////////////////////////////
-      ver="4.0.1"
-      dt="06/11/2016"
+      ver="4.0.2"
+      dt="05/12/2016"
       call headprt(ver,dt)
 
 c///////////////////////////////////////////////////////////////////////
@@ -137,7 +139,8 @@ c
       lsph=0              ! MOs are in Cartesian (0) or spherical (1) basis functions
 
 c     read user's parameters from m2a.ini
-      call uinit(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp,irdecp)
+      call uinit(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp,irdecp,
+     & stline)
 
 c///////////////////////////////////////////////////////////////////////
 c     program list which can save MOLDEN file
@@ -162,19 +165,19 @@ c     search [Program] and get the name of the program.
 c     [Program] is a special keyword for Molden2AIM.
 c     iprog = 0 (default), 1 (orca), 2 (cfour), 3 (turbomole), ...
 c///////////////////////////////////////////////////////////////////////
-      call getprog(imod,nprog,pname,iprog)
+      call getprog(imod,nprog,pname,iprog,stline)
 
 c///////////////////////////////////////////////////////////////////////
 c     backup molden file and delete some redundant (e.g. Pople GTO by
 c     ACES2) or not useful data (e.g. unoccupied orb.s)
 c///////////////////////////////////////////////////////////////////////
-      call backupatm(imod,iatm,ifind)
+      call backupatm(imod,iatm,ifind,stline)
       if(ifind.eq.0)goto 9910           ! STOP: [ATOMS] was not found
       call natom(iatm,nat,nchar,iunit,ierr)  ! iunit = 0: Ang. 1: Bohr 2: Error
       if(ierr.ne.0)goto 9910            ! STOP: deMon2k's geometry optimization, or wrong ordering
-      call backupgto(imod,igto,itmp,igin,igol,nat,iprog,ifind)
+      call backupgto(imod,igto,itmp,igin,igol,nat,iprog,ifind,stline)
       if(ifind.eq.0)goto 9910           ! STOP: [GTO] was not found, or wrong ordering
-      call npgau(igto,Ierr,ncar,nsph,MaxL)   ! # of uc. and c. GTO
+      call npgau(igto,Ierr,ncar,nsph,MaxL,stline)   ! # of uc. and c. GTO
       if(Ierr.eq.1)then
 c---  For CFour, there may be basis functions higher than g
         write(*,*)"Error! Only S,P,D,F,G functions are supported!"
@@ -185,8 +188,8 @@ c---  ncar(1) > maxpg or ncar(2) > maxpgc
         goto 9910
       end if
 c---  check: Car. vs Sph.
-c      call checkcar(ncarmo,ifind)
-      call checkcar2(ncarmo,ishrt,ifind)
+c      call checkcar(ncarmo,ifind,stline)
+      call checkcar2(ncarmo,ishrt,ifind,stline)
       if(ifind.eq.0)goto 9910           ! STOP: [MO] was not found
       if(iprog .eq. 4)then
         ncarmo=ncar(2)
@@ -222,7 +225,7 @@ c---  compute scaling factors of MO
       call moscale(igto,iprog,ncar(2))
 
 c---  backup MO
-      call fill0s(imo0,ncarmo,ishrt)
+      call fill0s(imo0,ncarmo,ishrt,stline)
       if(IAllMO .eq. 0)then
         tolocc=5.0d-8
       else if(IAllMO .gt. 0)then
@@ -232,10 +235,10 @@ c---  backup MO
       end if
       if(lsph.eq.0)then
         call backupmolc(imol,ispn,imo0,nmo,nmotot,sumocc,ifspin,ifbeta,
-     &   ncar(2),tolocc,ierr)
+     &   ncar(2),tolocc,stline,ierr)
       else
         call backupmols(imol,ispn,imo0,nmo,nmotot,sumocc,ifspin,ifbeta,
-     &   iprog,tolocc,ierr)
+     &   iprog,tolocc,stline,ierr)
       end if
       if(ierr.ne.0)then
         write(*,"(/,' Wrong! Star (*) is found in MO coefficients.',/,
@@ -300,7 +303,7 @@ c     read core data?
         if(yn .ne. 'N') irdecp = 1
       end if
       if(irdecp .gt. 0)then
-        call RdCore(iatm,imod,icor,nat,iecp,ierr)
+        call RdCore(iatm,imod,icor,nat,iecp,ierr,stline)
         if(ierr .ne. 0)goto 9910
       end if
 
@@ -341,7 +344,7 @@ c///////////////////////////////////////////////////////////////////////
 
       if(doit) then
         call genmdn(fmdn,inmd,iatm,igto,imol,imo0,icor,ver,dt,nat,
-     *    nmotot,ncarmo,ncar(2),ifc4,iecp)
+     *    nmotot,ncarmo,ncar(2),ifc4,iecp,stline)
         write(*,8000)
       end if
 
@@ -373,7 +376,8 @@ c///////////////////////////////////////////////////////////////////////
 
         call writeatm(iwfn,iatm,icor,nat,iecp)
         call writecnt(iwfn,0,igto,imol,ncar(1))
-        call writemol(iwfn,imol,nmotot,ncar(1),ncar(2),tolocc,ifc4)    ! ifc4=1 or 2 (CFour,Q-chem)
+        call writemol(iwfn,imol,nmotot,ncar(1),ncar(2),tolocc,ifc4,    ! ifc4=1 or 2 (CFour,Q-chem)
+     *    stline)
         write(iwfn,"('END DATA')")
         write(iwfn,"(' THE  HF ENERGY =',f20.12,' THE VIRIAL(-V/T)=',
      *    f13.8)")0.d0,2.d0
@@ -440,10 +444,10 @@ c///////////////////////////////////////////////////////////////////////
 
         call genwfx(iatm,igto,imol,ispn,icor,iedf,iwfx,fwfx,ver,dt,nat,
      &    nmotot,nmo,chanet,tolocc,ntote,ncar(1),ncar(2),nedf,iecp,
-     &    ifc4,ifspin,ifbeta)
+     &    ifc4,ifspin,ifbeta,stline)
 
 c       final step
-        call finalwfx(fwfx,MaxL)
+        call finalwfx(fwfx,iecp,MaxL)
 
 c---    Check the AIM-WFX file
         if(ICntrl(6) .gt. 0)then
@@ -466,7 +470,7 @@ c---    Check the AIM-WFX file
         end if
 
         if(doit) then
-          call CheckWFX(iwfx,nat,ncar(1),MaxL,info)
+          call CheckWFX(iwfx,nat,ncar(1),MaxL,info,stline)
           if(info.ne.0) goto 9910
         end if
 
@@ -521,7 +525,7 @@ c---    Generalized Wiberg bond order?
 
         call cbsinf(igto,nat,nshell,nexp)
         call gennbo(inbo,iwbo,iatm,igto,imol,icor,ver,dt,nat,nshell,
-     &   nexp,ncar(2),nmotot,MaxL,ifc4,iecp,ifwbo,info)
+     &   nexp,ncar(2),nmotot,MaxL,ifc4,iecp,ifwbo,info,stline)
         if(info.ne.0) goto 9910
 
 c       final step
@@ -546,7 +550,7 @@ c---    Check the NBO .47 file
         end if
 
         if(doit) then
-          call CheckNBO(inbo,nat,ncar(2),sumocc*dble(ifc4),info)
+          call CheckNBO(inbo,nat,ncar(2),sumocc*dble(ifc4),info,stline)
           if(info.ne.0) goto 9910
         end if
         write(*,8000)
@@ -607,7 +611,7 @@ c-----------------------------------------------------------------------
 c---  Read user's initialization parameters from m2a.ini
 c-----------------------------------------------------------------------
       Subroutine uinit(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp,
-     &  irdecp)
+     &  irdecp,ctmp)
       Implicit Real*8(A-H,O-Z)
       Dimension ICntrl(8)
       character*100 ctmp
@@ -705,7 +709,7 @@ c 5) If ECP is used, you have to correct iz(2) in $COORD by hand.
 c
 c-----------------------------------------------------------------------
       subroutine gennbo(inbo,iwbo,iatm,igto,imol,icor,ver,dt,natm,
-     & nshell,nexp,nbas,nmo,MaxL,ifc4,iecp,ifwbo,info)
+     & nshell,nexp,nbas,nmo,MaxL,ifc4,iecp,ifwbo,info,ctmp)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       parameter(au2ang=0.529177249d0)
 c     scalmo will be used
@@ -917,7 +921,7 @@ c-----------------------------------------------------------------------
 c---  read core information from the [CORE] or [PSEUDO] block defined by
 c     the user
 c-----------------------------------------------------------------------
-      subroutine RdCore(iatm,imod,icor,nat,ncor,ierr)
+      subroutine RdCore(iatm,imod,icor,nat,ncor,ierr,ctmp)
       implicit real*8 (a-h,o-z)
       character*100 ctmp
       character*3 atom
@@ -1835,9 +1839,9 @@ c--- < 0: same as 0 except the name of QC program is known.
 c---
 c--- If MOLCAS uses spherical functions, iname will be reset to -6 later.
 c-----------------------------------------------------------------------
-      subroutine getprog(imod,nprog,pname,iname)
+      subroutine getprog(imod,nprog,pname,iname,tmp1)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      character*100 tmp1,tmp2
+      character*100 tmp1
       character*20 pname(nprog)
 1010  format(' >>> This MOLDEN file was generated by ',a,/)
 
@@ -1854,17 +1858,19 @@ c     iname is unknown
       call charl2u(tmp1)
       if(index(tmp1,'[PROGRAM]').ne.0) goto 200
       goto 100
-200   read(imod,"(100a)",end=9999)tmp2
-      call charl2u(tmp2)
 c     FORMAT:
 c     [PROGRAM] pname
 c          or
 c     [PROGRAM]
 c       pname
+200   i=len_trim(tmp1)+1
+      if(i .lt. 100)then
+        read(imod,"(100a)",end=9999)tmp1(i:)
+        call charl2u(tmp1(i:))
+      end if
 
       do i=1,nprog
-        if(index(tmp1,trim(pname(i))).ne.0 .or.
-     &     index(tmp2,trim(pname(i))).ne.0)then
+        if(index(tmp1,trim(pname(i))) .ne. 0)then
           iname=i
           write(*,1010)trim(pname(iname))
           exit
@@ -1877,7 +1883,7 @@ c       pname
 c-----------------------------------------------------------------------
 c---  Check the NBO's .47 file
 c-----------------------------------------------------------------------
-      subroutine CheckNBO(inbo,NAtom,NC,TotE1,info)
+      subroutine CheckNBO(inbo,NAtom,NC,TotE1,info,ctmp)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       parameter(tole=5.d-5,tola=1.d-6)
       character*100 ctmp
@@ -1989,7 +1995,7 @@ c---  compute the number of electrons
 c-----------------------------------------------------------------------
 c---  Check the AIM-WFX file
 c-----------------------------------------------------------------------
-      subroutine CheckWFX(iwfx,MaxAtm,maxpg,MaxL,info)
+      subroutine CheckWFX(iwfx,MaxAtm,maxpg,MaxL,info,ctmp)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       parameter(tole=5.d-5,tola=1.d-6)
       dimension r(3,MaxAtm),Expon(maxpg),CMO(maxpg),FNor(maxpg),
@@ -2335,9 +2341,9 @@ c-----------------------------------------------------------------------
       ierr=1
       chanet=dble(nchar-iecp)-sumocc
       write(*,"(//,' Warning: the total electron is different from the',
-     *' sum of occupations!',//,2x,
-     *' #Elec.=',f8.2,', Sum_OCC=',f8.2,', #Core=',f8.2,
-     *' Net Charge=',f8.2,//,
+     *' sum of occupations!',//,4x,
+     *'#Electron        =',f10.4,/,4x,'Sum_Occupation   =',f10.4,/,4x,
+     *'#Core Electron   =',f10.4,/,4x,'Net Charge       =',f10.4,//,
      *' The reasons may be',/,
      *' 1) semi-empirical Hamiltonian is used,',/,
      *' 2) ionic system with net charge',f8.2,','/,
@@ -2359,23 +2365,23 @@ c-----------------------------------------------------------------------
           docc=abs(ANINT(sumocc)-sumocc)
           if(docc .lt. 1.d-4)then
             write(*,"(/,
-     *      ' This is an ionic system with net charge',f8.2)") chanet
+     *      ' This is an ionic system with net charge',f10.4)") chanet
           else if(docc .lt. 1.d-2)then
-            write(*,"(/,' Warning! Strange occupation: ',f8.3)")sumocc
+            write(*,"(/,' Warning! Strange occupation: ',f10.4)")sumocc
             write(*,"(/,' Please check your AIM results carefully.')")
           else
-            write(*,"(/,' Error! Strange occupation: ',f8.3)")sumocc
+            write(*,"(/,' Error! Strange occupation: ',f10.4)")sumocc
             goto 9910
           end if
         case("3")
           write(*,"(///,' Occupations are multiplied by 2.0...')")
           ifc4=2
           chanet=dble(nchar-iecp)-sumocc*dble(ifc4)
-          write(*,"(/,
-     *    '   #Electron            = ',f8.2,/,
-     *    '   Modified Sum_OCC     = ',f8.2,/,
-     *    '   #Core                = ',f8.2,/,
-     *    '   Net Charge           = ',f8.2,/)")
+          write(*,"(/,4x,
+     *    '#Electron        =',f10.4,/,4x,
+     *    'Modified Sum_Occ =',f10.4,/,4x,
+     *    '#Core Electron   =',f10.4,/,4x,
+     *    'Net Charge       =',f10.4,/)")
      *    dble(nchar),sumocc*dble(ifc4),dble(iecp),chanet
 c--- for Q-Chem
           if(iprog .eq. 0)write(*,"(
@@ -2573,7 +2579,10 @@ c-----------------------------------------------------------------------
      &' 19) Molden (the Molden program can read MOs from the output',
      -    ' file of some',/,
      &'     QC programs, and save a MOLDEN file)',/,
-     &' 20) Gabedit (the GAB file is compatible)'
+     &' 20) Gabedit (the GAB file is compatible)',/,
+     &' 21) MultiWFN (it can read the fchk file of Gaussian and',
+     -    ' Q-Chem, and save',/,
+     &'     a MOLDEN file)'
      &)")
 
       write(*,"(/,
@@ -2592,7 +2601,7 @@ c-----------------------------------------------------------------------
 c---  generate a standard Molden file with Cartrsian basis functions.
 c-----------------------------------------------------------------------
       subroutine genmdn(fmdn,inmd,iatm,igto,imol,imo0,icor,ver,dt,nat,
-     &  nmotot,ncarmo,ngc,ifc4,iecp)
+     &  nmotot,ncarmo,ngc,ifc4,iecp,tmp)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       parameter(maxpg=14000,maxpgc=10000)
       common/gtf/expg(maxpg),conf(maxpg),expgc(maxpgc),confc(maxpgc),
@@ -2683,7 +2692,12 @@ c         Occup=
             write(inmd,"(' Occup=',f18.8)")x*dble(ifc4)
 c         Ene=
           else if(index(tmp(1:j-1),'ENE').ne.0)then
-            read(tmp(j+1:),*)x
+c           in MOLDEN by ACES2-F/TeraChem, there may be " Ene=   ********" or a huge value
+            x = 0.d0
+            if(index(tmp(j+1:),'***') .eq. 0) then
+              read(tmp(j+1:),*)x
+              x = sign(min(abs(x), 1.d6), x)
+            end if
             write(inmd,"(' Ene=',f20.8)")x
 c         Sym=
           else if(index(tmp(1:j-1),'SYM').ne.0)then
@@ -2759,25 +2773,39 @@ c-----------------------------------------------------------------------
 c-----------------------------------------------------------------------
 c---  print information at the final step for wfx
 c-----------------------------------------------------------------------
-      subroutine finalwfx(fwfn,MaxL)
+      subroutine finalwfx(fwfn,iecp,MaxL)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       character*57 fwfn
 
       write(*,"(//,
      &'  A WFX file is generated successfully!',/,
      &'  File Name = ',a)")trim(fwfn)
-      if(MaxL .lt. 4)then
-        write(*,"(/,2x,
-     &'Please use',/,3x,
-     &'AIMALL, DensToolKit, MultiWFN, or ORBKIT',/)")
+c     with ECP
+      if(iecp .gt. 0) then
+        if(MaxL .lt. 4)then
+          write(*,"(/,2x,
+     &  'ECPs are found! Please use',/,3x,
+     &  'AIMALL, DensToolKit, MultiWFN, or ORBKIT',/)")
+        else
+          write(*,"(/,2x,
+     &  'ECPs and G-functions are found! Please use',/,3x,
+     &  'AIMALL, MultiWFN, or ORBKIT',/)")
+        end if
+c     without ECP
       else
-        write(*,"(/,2x,
-     &'G-functions are found! Please use',/,3x,
-     &'AIMALL, MultiWFN, or ORBKIT',/)")
+        if(MaxL .lt. 4)then
+          write(*,"(/,2x,
+     &  'Please use',/,3x,
+     &  'AIMALL, DensToolKit, GPView, MultiWFN, or ORBKIT',/)")
+        else
+          write(*,"(/,2x,
+     &  'G-functions are found! Please use',/,3x,
+     &  'AIMALL, GPView, MultiWFN, or ORBKIT',/)")
+        end if
       end if
       write(*,"('  to analyse the electron density distribution.')")
-      write(*,"(/,6x,'>>> Please correct the UNKNOWN terms',
-     &' in the WFX file manually <<<')")
+      write(*,"(//,6x,'>>> Please correct the UNKNOWN terms',
+     &' in the WFX file manually <<<',/)")
 
       return
       end
@@ -2815,7 +2843,7 @@ c--- A new version of the subroutine checkcar for shortened MO arrays.
 c--- Count the number of basis functions from MO, which can be used to
 c--- judge cartesian/spherical basis functions.
 c-----------------------------------------------------------------------
-      subroutine checkcar2(nc,ishort,ifmo)
+      subroutine checkcar2(nc,ishort,ifmo,tmp)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       character*100 tmp
 
@@ -2867,7 +2895,7 @@ cc-----------------------------------------------------------------------
 cc--- count the number of basis functions from MO, which can be used to
 cc--- judge Cartesian/spherical basis functions.
 cc-----------------------------------------------------------------------
-c      subroutine checkcar(nc,ifmo)
+c      subroutine checkcar(nc,ifmo,tmp)
 c      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
 c      character*100 tmp
 c
@@ -2923,13 +2951,13 @@ c      end
 c-----------------------------------------------------------------------
 c--- write MO.s to the *.wfn file
 c-----------------------------------------------------------------------
-      subroutine writemol(iwfn,imol,nmo,ng,ngc,tolocc,ifc4)
+      subroutine writemol(iwfn,imol,nmo,ng,ngc,tolocc,ifc4,tmp)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       parameter(maxpg=14000,maxpgc=10000)
       common/gtf/expg(maxpg),conf(maxpg),expgc(maxpgc),confc(maxpgc),
      *cfmo(maxpg),cn(maxpg),scalmo(maxpgc),
      *nbs,icnt(maxpg),ityp(maxpg),icmo(maxpg),ibstyp(maxpgc)
-      character*10 tmp
+      character*100 tmp
 
 c--- normalization factor
       do i=1,ng
@@ -2938,8 +2966,20 @@ c--- normalization factor
 
       rewind(imol)
       do i=1,nmo
-        read(imol,*)tmp,occ
-        read(imol,*)tmp,eng
+c       in MOLDEN by ACES2-F/TeraChem, there may be " Ene=   ********" or a huge value
+        occ=0.d0
+        ene=0.d0
+        read(imol,"(a100)") tmp
+        is=index(tmp,'=')
+        if(index(tmp(is+1:),'***') .eq. 0) read(tmp(is+1:),*) occ
+        read(imol,"(a100)") tmp
+        is=index(tmp,'=')
+        if(index(tmp(is+1:),'***') .eq. 0) then
+          read(tmp(is+1:),*) ene
+          ene = sign(min(abs(ene), 1.d6), ene)
+        end if
+cooo        read(imol,*)tmp,occ
+cooo        read(imol,*)tmp,eng
         do j=1,ngc
           read(imol,*)ingc,cfmo(j)
           cfmo(j)=cfmo(j)*scalmo(j)
@@ -3003,7 +3043,7 @@ c
 c-----------------------------------------------------------------------
       subroutine genwfx(iatm,igto,imol,ispn,icor,iedf,iwfx,fwfx,ver,dt,
      &  nat,nmotot,nmo,chanet,tolocc,ntote,ncar,ncarc,nedf,iecp,ifc4,
-     &  ifspin,ifbeta)
+     &  ifspin,ifbeta,ctmp)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       parameter (maxza=120,au2ang=0.529177249d0)
       parameter (maxpg=14000,maxpgc=10000)
@@ -3800,7 +3840,7 @@ c-----------------------------------------------------------------------
 c--- write MO.s (spherical basis functions) to a temporary file.
 c-----------------------------------------------------------------------
       subroutine backupmols(imol,ispn,imo0,nmo,nmotot,sumocc,ifspin,
-     & ifbeta,iprog,th,ierr)
+     & ifbeta,iprog,th,tmp,ierr)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       parameter(maxpg=14000,maxpgc=10000)
       common/gtf/expg(maxpg),conf(maxpg),expgc(maxpgc),confc(maxpgc),
@@ -3842,9 +3882,13 @@ c--- pass AIMALL's examination if there are f, g functions.
       if(len_trim(tmp).eq.0) goto 200
       call charl2u(tmp)
       if(index(tmp,'ENE').ne.0)then
+        ene=0.d0
         is=index(tmp,'=')
-c       in ACES2-F, there may be " Ene=   ********"
-        if(index(tmp(is+1:),'***').eq.0) read(tmp(is+1:),*) ene
+c       in MOLDEN by ACES2-F/TeraChem, there may be " Ene=   ********" or a huge value
+        if(index(tmp(is+1:),'***') .eq. 0) then
+          read(tmp(is+1:),*) ene
+          ene = sign(min(abs(ene), 1.d6), ene)
+        end if
       else if(index(tmp,'OCCUP').ne.0)then
         is=index(tmp,'=')
         read(tmp(is+1:),*) occ
@@ -3900,7 +3944,7 @@ c-----------------------------------------------------------------------
 c--- write MO.s (Cartesian basis functions) to a temporary file.
 c-----------------------------------------------------------------------
       subroutine backupmolc(imol,ispn,imo0,nmo,nmotot,sumocc,ifspin,
-     & ifbeta,ngc,th,ierr)
+     & ifbeta,ngc,th,tmp,ierr)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       character*100 tmp
 
@@ -3922,9 +3966,13 @@ c-----------------------------------------------------------------------
       if(len_trim(tmp).eq.0) goto 200
       call charl2u(tmp)
       if(index(tmp,'ENE').ne.0)then
+        ene=0.d0
         is=index(tmp,'=')
-c       in ACES2-F, there may be " Ene=   ********"
-        if(index(tmp(is+1:),'***').eq.0) read(tmp(is+1:),*) ene
+c       in MOLDEN by ACES2-F/TeraChem, there may be " Ene=   ********" or a huge value
+        if(index(tmp(is+1:),'***') .eq. 0) then
+          read(tmp(is+1:),*) ene
+          ene = sign(min(abs(ene), 1.d6), ene)
+        end if
       else if(index(tmp,'OCCUP').ne.0)then
         is=index(tmp,'=')
         read(tmp(is+1:),*) occ
@@ -3963,7 +4011,7 @@ c         find a star in the MO coefficients!
 c-----------------------------------------------------------------------
 c--- backup MO, and fill in missing zero coefficients if ishrt=1
 c-----------------------------------------------------------------------
-      subroutine fill0s(imo0,ncarmo,ishrt)
+      subroutine fill0s(imo0,ncarmo,ishrt,tmp)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       character*100 tmp
 
@@ -4102,7 +4150,8 @@ c      close(itmp,status='delete')
 c-----------------------------------------------------------------------
 c--- back up GTOs
 c-----------------------------------------------------------------------
-      subroutine backupgto(imod,igto,itmp,igtoin,igtold,nat,iprog,ifgto)
+      subroutine backupgto(imod,igto,itmp,igtoin,igtold,nat,iprog,ifgto,
+     &  tmp)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       character*100 tmp
       character*2 al
@@ -4168,7 +4217,7 @@ c--- MOLDEN file may be unnormalized
       call bknorm(igtoin,igtold,iprog,ifgto)
 
 c--- setp 3: reorder, and dump igtold to igto
-      if(ifgto .eq. 1) call dumpbs(igto,igtold,nat,ifgto)
+      if(ifgto .eq. 1) call dumpbs(igto,igtold,nat,ifgto,tmp)
 
       close(igtoin,status='delete')
       close(igtold,status='delete')
@@ -4182,14 +4231,14 @@ c--- reorder, and dump igtold to igto
 c    NOTE: because of some uncertainties in the MOLDEN format, atoms in
 c    {Atoms} and [GTO] must be ordered ascendingly.
 c-----------------------------------------------------------------------
-      subroutine dumpbs(igto,igtold,nat,ierr)
+      subroutine dumpbs(igto,igtold,nat,ierr,tmp)
       implicit double precision (a-h,o-z)
       character*100 tmp
 
       rewind(igto)
 
       do i=1,nat
-        call locatm(igtold,i,ierr)
+        call locatm(igtold,i,ierr,tmp)
         if(ierr.eq.0)goto 9999
         write(igto,"(i5,' 0')")i
 100     read(igtold,"(100a)",end=200)tmp
@@ -4205,7 +4254,7 @@ c-----------------------------------------------------------------------
 c-----------------------------------------------------------------------
 c--- locate atom-i in igtold
 c-----------------------------------------------------------------------
-      subroutine locatm(igtold,i,ierr)
+      subroutine locatm(igtold,i,ierr,tmp)
       implicit double precision (a-h,o-z)
       character*100 tmp
 
@@ -4349,7 +4398,7 @@ c---  where n1=3+4*L; n2=3+2*L, nf=[(2L-1)!!]^2
 c-----------------------------------------------------------------------
 c--- back up atoms and coordinates
 c-----------------------------------------------------------------------
-      subroutine backupatm(imod,iatm,ifatm)
+      subroutine backupatm(imod,iatm,ifatm,tmp)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       character*100 tmp
       character*3 element
@@ -4441,7 +4490,7 @@ c-----------------------------------------------------------------------
 c--- count the numbers of Cartesian and Spherical basis functions from
 c--- GTO.
 c-----------------------------------------------------------------------
-      subroutine npgau(igto,Ierr,ncar,nsph,MaxL)
+      subroutine npgau(igto,Ierr,ncar,nsph,MaxL,tmp)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       parameter(maxpg=14000,maxpgc=10000)
       common/gtf/expg(maxpg),conf(maxpg),expgc(maxpgc),confc(maxpgc),
