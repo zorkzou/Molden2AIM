@@ -3,7 +3,7 @@ c--- Molden2AIM: a utility to convert the format from MOLDEN to AIM-WFN.
 c--- Written in FORTRAN 77 and a bit of FORTRAN 90, and tested on
 c--- Windows, Linux, and MacOSX.
 c---
-c--- Updated:
+c--- History of update:
 c--- Ver.1.0.0, 11/23/2009, The first public version. Supports MOLPRO.
 c--- Ver.1.1.0, 11/25/2009, Renormalization of b.s. (subroutine renorm).
 c--- Ver.1.2.0, 12/02/2009, Supports spherical Basis functions.
@@ -39,6 +39,8 @@ c---                        WFX: computs spin multiplicity if the
 c---                        numbers of alpha and beta electrons are
 c---                        known.
 c--- Ver.4.0.2, 12/05/2016, Bug fix for "Ene =" in TeraChem's MOLDEN
+c--- Ver.4.1.0, 03/18/2017, WFX: EDF library; Read Multiplicity
+c---                        MOLDEN file: Supports PySCF
 c---
 c--- E-mail: qcband@gmail.com
 c-----------------------------------------------------------------------
@@ -71,8 +73,8 @@ c---  Cartesian NC-/C-GTO; Spherical NC-/C-GTO
 c///////////////////////////////////////////////////////////////////////
 c     head
 c///////////////////////////////////////////////////////////////////////
-      ver="4.0.2"
-      dt="05/12/2016"
+      ver="4.1.0"
+      dt="03/18/2017"
       call headprt(ver,dt)
 
 c///////////////////////////////////////////////////////////////////////
@@ -102,6 +104,13 @@ c///////////////////////////////////////////////////////////////////////
                           ! 0: other programs, or read [Program] xxx from MOLDEN.
                           ! If one of the above program is always used, you can provide
                           ! iprog here without defining [Program] xxx in MOLDEN any more.
+
+      nosupp=0            ! Print supporting information (0) or not (.ne.0)
+
+      irdecp=0            ! For ECP: read core information from Molden file
+                          ! <=0: if the total_occupation_number is smaller than the
+                          !      total_Za, ask the user whether to read core information
+                          !  >0: always search and read core information
 
 c///////////////////////////////////////////////////////////////////////
 c     Port numbers
@@ -140,7 +149,7 @@ c
 
 c     read user's parameters from m2a.ini
       call uinit(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp,irdecp,
-     & stline)
+     & iunknw,stline)
 
 c///////////////////////////////////////////////////////////////////////
 c     program list which can save MOLDEN file
@@ -440,14 +449,14 @@ c///////////////////////////////////////////////////////////////////////
 
       if(doit) then
 
-        call genedftc(icor,iedf,iecp,nat,nedf)
+        call edfmain(icor,iedf,iecp,nat,nedf)
 
         call genwfx(iatm,igto,imol,ispn,icor,iedf,iwfx,fwfx,ver,dt,nat,
      &    nmotot,nmo,chanet,tolocc,ntote,ncar(1),ncar(2),nedf,iecp,
-     &    ifc4,ifspin,ifbeta,stline)
+     &    ifc4,ifspin,ifbeta,iunknw,stline)
 
 c       final step
-        call finalwfx(fwfx,iecp,MaxL)
+        call finalwfx(fwfx,iecp,iunknw,MaxL)
 
 c---    Check the AIM-WFX file
         if(ICntrl(6) .gt. 0)then
@@ -611,15 +620,15 @@ c-----------------------------------------------------------------------
 c---  Read user's initialization parameters from m2a.ini
 c-----------------------------------------------------------------------
       Subroutine uinit(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp,
-     &  irdecp,ctmp)
+     &  irdecp,iunknw,ctmp)
       Implicit Real*8(A-H,O-Z)
       Dimension ICntrl(8)
       character*100 ctmp
-      parameter(nkey=13)
+      parameter(nkey=14)
       character*9 keyword(nkey)
       data keyword/"MOLDEN=","WFN=","WFX=","NBO=","WFNCHECK=",
      & "WFXCHECK=","NBOCHECK=","WBO=",
-     & "PROGRAM=","CLEAR=","IALLMO=","NOSUPP=","RDCORE="/
+     & "PROGRAM=","CLEAR=","IALLMO=","NOSUPP=","RDCORE=","UNKNOWN="/
 
       open(iini,file='m2a.ini',status='old',err=9000)
       rewind(iini)
@@ -669,7 +678,10 @@ c-----------------------------------------------------------------------
             if(keyvalue .ne. 0) nosupp = 1
           case(13)
             irdecp = 0
-            if(keyvalue .gt. 0) irdecp = 1
+            if(keyvalue .ne. 0) irdecp = 1
+          case(14)
+            iunknw = 0
+            if(keyvalue .ne. 0) iunknw = 1
         end select
       end do
       close(iini)
@@ -2341,18 +2353,23 @@ c-----------------------------------------------------------------------
       ierr=1
       chanet=dble(nchar-iecp)-sumocc
       write(*,"(//,' Warning: the total electron is different from the',
-     *' sum of occupations!',//,4x,
-     *'#Electron        =',f10.4,/,4x,'Sum_Occupation   =',f10.4,/,4x,
-     *'#Core Electron   =',f10.4,/,4x,'Net Charge       =',f10.4,//,
-     *' The reasons may be',/,
-     *' 1) semi-empirical Hamiltonian is used,',/,
-     *' 2) ionic system with net charge',f8.2,','/,
-     *' 3) beta MOs of R-/RO-SCF are not printed by CFOUR or Q-Chem,'    ! C4: RHF; Q-Chem: RHF, RDFT, ROGF, RODFT
-     *' and therefore',/,
-     *'    the occupation numbers should be multiplied by 2.0,',/,
-     *' or others.',//,
-     *' Which one corresponds to your case?',/,' > ',$)")
-     *dble(nchar),sumocc,dble(iecp),chanet,chanet
+     &  ' sum of occupations!',//,4x,
+     &  '#Electron        =',f10.4,/,4x,'Sum_Occupation   =',f10.4,/,4x,
+     &  '#Core Electron   =',f10.4,/,4x,'Net Charge       =',f10.4,//,
+     &  ' The reasons may be',/,
+     &  ' 1) semi-empirical Hamiltonian is used,')")
+     &  dble(nchar),sumocc,dble(iecp),chanet
+      if(chanet .ge. 0) then
+        write(*,"(' 2) ionic system with net charge',f8.2,',')")chanet
+      else
+        write(*,"(' 2) anionic system with net charge',f8.2,',')")chanet
+      end if
+c     C4: RHF; Q-Chem: RHF, RDFT, ROGF, RODFT
+      write(*,"(' 3) beta MOs of R-/RO-SCF are not printed by CFOUR or'
+     &  ' Q-Chem, and therefore',/,
+     &  '    the occupation numbers should be multiplied by 2.0,',/,
+     &  ' 4) other reasons.',//,
+     &  ' Which one corresponds to your case?',/,' > ',$)")
 
       read(*,*)ioc
 
@@ -2364,8 +2381,13 @@ c-----------------------------------------------------------------------
         case("2")
           docc=abs(ANINT(sumocc)-sumocc)
           if(docc .lt. 1.d-4)then
-            write(*,"(/,
-     *      ' This is an ionic system with net charge',f10.4)") chanet
+            if(chanet .ge. 0) then
+              write(*,"(/,' This is an ionic system with net charge',
+     &          f10.4)") chanet
+            else
+              write(*,"(/,' This is an anionic system with net charge',
+     &          f10.4)") chanet
+            end if
           else if(docc .lt. 1.d-2)then
             write(*,"(/,' Warning! Strange occupation: ',f10.4)")sumocc
             write(*,"(/,' Please check your AIM results carefully.')")
@@ -2390,7 +2412,7 @@ c--- for Q-Chem
      *    ' correct the',/,
      *    '  occupation numbers of singly occupied MOs manually.')")
         case default
-          write(*,"(/,' Unknown reason.')")
+          write(*,"(/,' Unknown reason. Please report the problem.')")
           goto 9910
       end select
       call xcontinue
@@ -2582,11 +2604,12 @@ c-----------------------------------------------------------------------
      &' 20) Gabedit (the GAB file is compatible)',/,
      &' 21) MultiWFN (it can read the fchk file of Gaussian and',
      -    ' Q-Chem, and save',/,
-     &'     a MOLDEN file)'
+     &'     a MOLDEN file)',/,
+     &' 22) PySCF'
      &)")
 
       write(*,"(/,
-     &' Programs to be tested:      1) NRLMOL     2) PySCF      ',
+     &' Programs to be tested:      1) NRLMOL     2) SeqQuest   ',
      &'3) StoBe')")
 
       write(*,"(/,
@@ -2753,15 +2776,17 @@ c-----------------------------------------------------------------------
       else if(MaxL .lt. 4)then
         write(*,"(/,2x,
      &'Please use',/,3x,
-     &'AIM2000, AIMALL, AIMPAC, AIMPAC2, AIM-UC, CheckDen, ',
-     -'DensToolKit, DGrid,',/,3x,
-     &'MORPHY, MultiWFN, ORBKIT, PAMoC, ProMolden, TopChem, TopMoD, ',
-     -'or XAIM',/)")
+     &'AIM2000, AIMALL, AIMPAC, AIMPAC2, AIM-UC, CheckDen, Critic2, ',
+     -'DensToolKit,',/,3x,
+     &'DGrid, MORPHY, MultiWFN, ORBKIT, PAMoC, ProMolden, TopChem, ',
+     -'TopMoD,',/,3x,
+     &'or XAIM',/)")
       else
         write(*,"(/,2x,
      &'G-functions are found! Please use',/,3x,
-     &'AIM2000 (Ver. 2013), AIMALL, AIM-UC, DGrid, MultiWFN, ORBKIT,',
-     -' or TopChem',/)")
+     &'AIM2000 (Ver. 2013), AIMALL, AIM-UC, Critic2, DGrid, MultiWFN, ',
+     -'ORBKIT,',/,3x,
+     &'or TopChem',/)")
       end if
       write(*,"('  to analyse the electron density distribution.')")
       if(iecp .gt. 0) write(*,"(/,9x,
@@ -2773,7 +2798,7 @@ c-----------------------------------------------------------------------
 c-----------------------------------------------------------------------
 c---  print information at the final step for wfx
 c-----------------------------------------------------------------------
-      subroutine finalwfx(fwfn,iecp,MaxL)
+      subroutine finalwfx(fwfn,iecp,iunknw,MaxL)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       character*57 fwfn
 
@@ -2785,27 +2810,34 @@ c     with ECP
         if(MaxL .lt. 4)then
           write(*,"(/,2x,
      &  'ECPs are found! Please use',/,3x,
-     &  'AIMALL, DensToolKit, MultiWFN, or ORBKIT',/)")
+     &  'AIMALL, Critic2, DensToolKit, MultiWFN, or ORBKIT',/)")
         else
           write(*,"(/,2x,
      &  'ECPs and G-functions are found! Please use',/,3x,
-     &  'AIMALL, MultiWFN, or ORBKIT',/)")
+     &  'AIMALL, Critic2, MultiWFN, or ORBKIT',/)")
         end if
 c     without ECP
       else
         if(MaxL .lt. 4)then
           write(*,"(/,2x,
      &  'Please use',/,3x,
-     &  'AIMALL, DensToolKit, GPView, MultiWFN, or ORBKIT',/)")
+     &  'AIMALL, Critic2, DensToolKit, GPView, MultiWFN, or ORBKIT',/)")
         else
           write(*,"(/,2x,
      &  'G-functions are found! Please use',/,3x,
-     &  'AIMALL, GPView, MultiWFN, or ORBKIT',/)")
+     &  'AIMALL, Critic2, GPView, MultiWFN, or ORBKIT',/)")
         end if
       end if
       write(*,"('  to analyse the electron density distribution.')")
-      write(*,"(//,6x,'>>> Please correct the UNKNOWN terms',
-     &' in the WFX file manually <<<',/)")
+      if(iunknw .eq. 0) then
+        write(*,"(//,6x,65('-'),/, 6x,'>>>',
+     -    ' Please correct the UNKNOWN terms in the WFX file manually ',
+     -    '<<<',/, 6x,65('-'),/)")
+      else
+        write(*,"(//,6x,65('-'),/, 6x,'>>>',
+     -    ' Please modify Energy and Virial Ratio in WFX if necessary ',
+     -    '<<<',/, 6x,65('-'),/)")
+      end if
 
       return
       end
@@ -3043,7 +3075,7 @@ c
 c-----------------------------------------------------------------------
       subroutine genwfx(iatm,igto,imol,ispn,icor,iedf,iwfx,fwfx,ver,dt,
      &  nat,nmotot,nmo,chanet,tolocc,ntote,ncar,ncarc,nedf,iecp,ifc4,
-     &  ifspin,ifbeta,ctmp)
+     &  ifspin,ifbeta,iunknw,ctmp)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       parameter (maxza=120,au2ang=0.529177249d0)
       parameter (maxpg=14000,maxpgc=10000)
@@ -3124,32 +3156,58 @@ c     it works only when Beta exists
      &     abs(eleb-dble(nint(eleb))) .lt. 0.01d0) prtspn = .true.
       end if
 
+      if(prtspn) then
+        nelea = nint(elea)
+        neleb = nint(eleb)
+        MS = nelea - neleb + 1
+      else
+c       Read in Spin Multiplicity, Numbers of Alpha and Beta electrons
+        do while(.true.)
+          write(*,"(/,'  Type in the Spin Multiplicity:',/,
+     &    '  (default: 1 for even- and 2 for odd-number of electron',
+     &    ' system)',/,' > ',$)")
+          read(*,"(a10)",err=50) ctmp
+          if(len_trim(ctmp(1:10)) .eq. 0) then
+          	MS = 1
+          	if(mod(ntote,2) .eq. 1) MS = 2
+          else
+            read(ctmp(1:10),*,err=50) MS
+          end if
+
+          if(MS .lt. 1 .or. MS .gt. ntote+1) then
+            write(*,"(/,'   MS is out of range! Try again.')")
+            cycle
+          else if(mod(ntote,2) .eq. 0 .and. mod(MS,2) .eq. 0) then
+            write(*,"(/,'   MS must be an odd number! Try again.')")
+            cycle
+          else if(mod(ntote,2) .eq. 1 .and. mod(MS,2) .eq. 1) then
+            write(*,"(/,'   MS must be an even number! Try again.')")
+            cycle
+          else
+            exit
+          end if
+
+50        write(*,"(/,'   Error when reading MS! Try again.')")
+          cycle
+        end do
+        neleb = (ntote + 1 - MS) / 2
+        nelea = ntote - neleb
+      end if
+      write(*,"(/,'  Spin Multiplicity:', i4)") MS
+
 c     Number of Alpha Electrons
       call wfxlab(iwfx,0,"Number of Alpha Electrons")
-      if(prtspn) then
-        write(iwfx,"(i8)")nint(elea)
-      else
-        write(iwfx,"(' UNKNOWN')")
-      end if
+      write(iwfx,"(i8)") nelea
       call wfxlab(iwfx,1,"Number of Alpha Electrons")
 
 c     Number of Beta Electrons
       call wfxlab(iwfx,0,"Number of Beta Electrons")
-      if(prtspn) then
-        write(iwfx,"(i8)")nint(eleb)
-      else
-        write(iwfx,"(' UNKNOWN')")
-      end if
+      write(iwfx,"(i8)") neleb
       call wfxlab(iwfx,1,"Number of Beta Electrons")
 
 c     Electronic Spin Multiplicity (optional)
       call wfxlab(iwfx,0,"Electronic Spin Multiplicity")
-      if(prtspn) then
-        ix = nint(abs(elea-eleb)) + 1
-        write(iwfx,"(i8)") ix
-      else
-        write(iwfx,"(' UNKNOWN')")
-      end if
+      write(iwfx,"(i8)") MS
       call wfxlab(iwfx,1,"Electronic Spin Multiplicity")
 
 c     Number of Core Electrons
@@ -3332,41 +3390,71 @@ c     Energy = T + Vne + Vee + Vnn
       write(iwfx,"('# For CCSD, this is the CCSD total energy.')")
       write(iwfx,"('# etc.')")
       call wfxlab(iwfx,0,"Energy = T + Vne + Vee + Vnn")
-      write(iwfx,"(' UNKNOWN')")
+      if(iunknw .eq. 0) then
+        write(iwfx,"(' UNKNOWN')")
+      else
+        write(iwfx,"(e21.12e3)") 0.d0
+      end if
       call wfxlab(iwfx,1,"Energy = T + Vne + Vee + Vnn")
 
 c     Virial Ratio (-V/T)
       call wfxlab(iwfx,0,"Virial Ratio (-V/T)")
-      write(iwfx,"(' UNKNOWN')")
+      if(iunknw .eq. 0) then
+        write(iwfx,"(' UNKNOWN')")
+      else
+        write(iwfx,"(e21.12e3)") 2.d0
+      end if
       call wfxlab(iwfx,1,"Virial Ratio (-V/T)")
 
       return
       end
 
 c-----------------------------------------------------------------------
-c---  Generate EDF for ECP using the tight core density function, ie.
-c     alpha = 4pi, c = 8Ncore
-c     It is good for small-core or medium-core ECP but worse for large-
-c     core ECP. See Eq. 9 in J. Phys. Chem. A 115, 12879 (2011).
-c     This subroutine will be replaced in the future.
+c---  main subroutine of EDF library.
 c-----------------------------------------------------------------------
-      subroutine genedftc(icor,iedf,iecp,nat,nedf)
+      subroutine edfmain(icor,iedf,iecp,nat,nedf)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      parameter(MxEDF=40)
+      dimension edfa(MxEDF),edfc(MxEDF)
 
       nedf = 0
       if(iecp .lt. 2) return
 
-      alf=acos(-1.d0) * 4.d0
+      pi=acos(-1.d0)
+      alf=pi * 4.d0
 
       rewind(icor)
       rewind(iedf)
 
+      write(*,"(/,'  Generate EDF data:')")
       do i=1,nat
         read(icor,*)iz,ncore
         if(ncore .gt. 0)then
-          c=dble(8*ncore)
-          nedf = nedf + 1
-          write(iedf,"(i5,2e21.12e3)") i, alf, c
+          call EDFLIB(iz,ncore,nfun,edfa,edfc)    ! it's assumed that nfun <= 40
+
+          if(nfun .gt. 0) then
+            nedf = nedf + nfun
+            acore = 0.d0
+            do j=1, nfun
+              write(iedf,"(i5,2e21.12e3)") i, edfa(j), edfc(j)
+              x = sqrt(pi/edfa(j))
+              acore = acore + edfc(j)*x*x*x
+            end do
+            write(*,"('  Iatm=',i4,', ZA=',i4,', NCore=',i4,', ACore=',
+     &        f14.9,': EDF data from library')") i, iz, ncore, acore
+          else if(ncore .gt. 0) then
+c           Generate EDF using the tight core density function, ie.
+c           alpha = 4pi, c = 8Ncore
+c           It is good for small-core or medium-core ECP but worse for
+c           large-core ECP. See Eq. 9 in JPCA 115, 12879 (2011).
+            c=dble(8*ncore)
+            nedf = nedf + 1
+            write(iedf,"(i5,2e21.12e3)") i, alf, c
+            x = sqrt(pi/alf)
+            acore = c*x*x*x
+            write(*,"('  Iatm=',i4,', ZA=',i4,', NCore=',i4,', ACore=',
+     &        f14.9,': Tight Core Function')") i, iz, ncore, acore
+          end if
         end if
       end do
 
@@ -3664,7 +3752,7 @@ c-----------------------------------------------------------------------
      A'PA ','U  ','NP ','PU ','AM ','CM ','BK ','CF ','ES ','FM '/
       data (atomlib(i),i=101,maxza) /
      B'MD ','NO ','LR ','RF ','DB ','SG ','BH ','HS ','MT ','DS ',
-     C'RG ','CN ','UUT','FL ','UUP','LV ','UUS','UUO','UUE','UBN'/
+     C'RG ','CN ','NH ','FL ','MC ','LV ','TS ','OG ','UUE','UBN'/
       save atomlib
 
       if (Mode .eq. 0) then
