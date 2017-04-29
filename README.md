@@ -4,7 +4,12 @@
 Molden2AIM is a utility program which can be used to creat AIM-WFN, AIM-WFX, and NBO-47 files from a Molden file.
 
 ## Recent Changes
+Version 4.1.2 (04/29/2017).
+
+1. The EDF library has been reoptimized for the long-range part of density.
+
 Version 4.1.1 (04/21/2017).
+
 1. The EDF library has been reoptimized and the accuracy for Z > 36 (Kr) is increased by one or more orders of magnitude.
 
 Version 4.1.0 (03/18/2017).

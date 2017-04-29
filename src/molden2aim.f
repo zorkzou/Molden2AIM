@@ -42,6 +42,7 @@ c--- Ver.4.0.2, 12/05/2016, Bug fix for "Ene =" in TeraChem's MOLDEN
 c--- Ver.4.1.0, 03/18/2017, WFX: EDF library; Read Multiplicity
 c---                        MOLDEN file: Supports PySCF
 c--- Ver.4.1.1, 04/21/2017, WFX: EDF library is updated.
+c--- Ver.4.1.2, 04/29/2017, WFX: EDF library is updated.
 c---
 c--- E-mail: qcband@gmail.com
 c-----------------------------------------------------------------------
@@ -74,8 +75,8 @@ c---  Cartesian NC-/C-GTO; Spherical NC-/C-GTO
 c///////////////////////////////////////////////////////////////////////
 c     head
 c///////////////////////////////////////////////////////////////////////
-      ver="4.1.1"
-      dt="04/21/2017"
+      ver="4.1.2"
+      dt="04/29/2017"
       call headprt(ver,dt)
 
 c///////////////////////////////////////////////////////////////////////
