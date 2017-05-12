@@ -6,7 +6,7 @@ Molden2AIM is a utility program which can be used to creat AIM-WFN, AIM-WFX, and
 ## Recent Changes
 Version 4.1.3 (05/12/2017).
 
-1. The EDF library has been refitted using the even-tempered formula (M. Reiher and A. Wolf, J. Chem. Phys. 121, 10945, 2004) to achieve better accuracy.
+1. The EDF library has been refitted using the even-tempered formula (M. Reiher and A. Wolf, J. Chem. Phys. 121, 10945, 2004, Section VI.A) to achieve better accuracy.
 
 Version 4.1.2 (04/29/2017).
 
