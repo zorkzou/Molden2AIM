@@ -43,6 +43,9 @@ c--- Ver.4.1.0, 03/18/2017, WFX: EDF library; Read Multiplicity
 c---                        MOLDEN file: Supports PySCF
 c--- Ver.4.1.1, 04/21/2017, WFX: EDF library is updated.
 c--- Ver.4.1.2, 04/29/2017, WFX: EDF library is updated.
+c--- Ver.4.1.3, 05/12/2017, WFX: EDF library is refitted using even-
+c---                        tempered universal Gaussian formula
+c---                        Alpha_i = 0.001 * 1.65^(i-1).
 c---
 c--- E-mail: qcband@gmail.com
 c-----------------------------------------------------------------------
@@ -75,8 +78,8 @@ c---  Cartesian NC-/C-GTO; Spherical NC-/C-GTO
 c///////////////////////////////////////////////////////////////////////
 c     head
 c///////////////////////////////////////////////////////////////////////
-      ver="4.1.2"
-      dt="04/29/2017"
+      ver="4.1.3"
+      dt="05/12/2017"
       call headprt(ver,dt)
 
 c///////////////////////////////////////////////////////////////////////
@@ -3416,7 +3419,7 @@ c---  main subroutine of EDF library.
 c-----------------------------------------------------------------------
       subroutine edfmain(icor,iedf,iecp,nat,nedf)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      parameter(MxEDF=40)
+      parameter(MxEDF=45)
       dimension edfa(MxEDF),edfc(MxEDF)
 
       nedf = 0
