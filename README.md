@@ -1,7 +1,7 @@
 <img src="https://raw.githubusercontent.com/zorkzou/Molden2AIM/master/m2a-logo.png" />
 
 # Molden2AIM
-Molden2AIM is a utility program which can be used to creat AIM-WFN, AIM-WFX, and NBO-47 files from a Molden file.
+Molden2AIM is a utility program which can be used to create AIM-WFN, AIM-WFX, and NBO-47 files from a Molden file.
 
 ## Recent Changes
 Version 4.1.3 (05/12/2017).
