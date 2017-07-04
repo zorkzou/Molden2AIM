@@ -13,9 +13,10 @@
 program ReOrdAtm
 
 implicit none
-integer(kind=4) :: iinp=5, iout=6, i, NAtm=0, imod=0
+integer(kind=4) :: iinp=5, iout=6, igto=71, i, NAtm=0, imod=0
 integer(kind=4),allocatable :: iord(:)
 character*100 :: ctmp
+character*8 :: starint
 
 ! read argument "-m {imod}"
 call ReadInp(ctmp,imod)
@@ -48,21 +49,38 @@ end if
 
 write(iout,"('[GTO]')")
 call searchar(iinp,iout,5,"[GTO]",ctmp)
-i=0
-do while(.true.)
-  read(iinp,"(100a)")ctmp
-  if(len_trim(ctmp) .eq. 0) cycle
-  i = i +1
-  write(iout,"(i4,'  0')")i
-
-! search the next empty line
+if(imod .eq. 0)then
+  i=0
   do while(.true.)
     read(iinp,"(100a)")ctmp
-    write(iout,"(a)")trim(ctmp)
-    if(len_trim(ctmp) .eq. 0) exit
+    if(len_trim(ctmp) .eq. 0) cycle
+    i = i +1
+    write(iout,"(i4,'  0')")i
+  
+!   search the next empty line
+    do while(.true.)
+      read(iinp,"(100a)")ctmp
+      write(iout,"(a)")trim(ctmp)
+      if(len_trim(ctmp) .eq. 0) exit
+    end do
+    if(i .eq. NAtm) exit
   end do
-  if(i .eq. NAtm) exit
-end do
+else if(imod .eq. 1)then
+  open(igto,file='gto123456789.tmp')
+  call gtocpy(NAtm,iinp,igto)
+  do i=1,NAtm
+  	write(starint,"('***',i5)") i
+  	call searchar(igto,iout,8,starint,ctmp)
+    write(iout,"(i4,'  0')")i
+    do while(.true.)
+      read(igto,"(100a)")ctmp
+      if(index(ctmp,"***") .eq. 1) exit
+      write(iout,"(a)")trim(ctmp)
+    end do
+    write(iout,*)
+  end do
+  close(igto,status='delete')
+end if
 
 write(iout,"('[MO]')")
 call searchar(iinp,iout,4,"[MO]",ctmp)
@@ -124,8 +142,36 @@ end do
 return
 end
 
+! make a copy of basis functions (imod = 1)
+Subroutine gtocpy(NAtm,iinp,igto)
+
+implicit none
+integer(kind=4) :: i,ia,NAtm,iinp,igto
+character*100 :: ctmp
+
+i=0
+do while(.true.)
+  read(iinp,"(100a)")ctmp
+  if(len_trim(ctmp) .eq. 0) cycle
+  i = i +1
+  read(ctmp,*) ia
+  write(igto,"('***',i5)") ia
+
+! search the next empty line
+  do while(.true.)
+    read(iinp,"(100a)")ctmp
+    if(len_trim(ctmp) .eq. 0) exit
+    write(igto,"(a)")trim(ctmp)
+  end do
+  if(i .eq. NAtm) exit
+end do
+write(igto,"('***',i5)") 0
+
+Return
+End
+
 !
-! atomic ordering in [GTO]
+! atomic ordering in [GTO] (imod = 0)
 !
 subroutine RefOrd(iinp,iout,NAtm,iord,ctmp)
 
