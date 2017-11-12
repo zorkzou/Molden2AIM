@@ -46,6 +46,8 @@ c--- Ver.4.1.2, 04/29/2017, WFX: EDF library is updated.
 c--- Ver.4.1.3, 05/12/2017, WFX: EDF library is refitted using even-
 c---                        tempered universal Gaussian formula
 c---                        Alpha_i = 0.001 * 1.65^(i-1).
+c--- Ver.4.1.4, 11/12/2017, WFX: EDFs of Ti, V, Y, Zr, Nb, Ta, and Re
+c---                        have been updated.
 c---
 c--- E-mail: qcband@gmail.com
 c-----------------------------------------------------------------------
@@ -78,8 +80,8 @@ c---  Cartesian NC-/C-GTO; Spherical NC-/C-GTO
 c///////////////////////////////////////////////////////////////////////
 c     head
 c///////////////////////////////////////////////////////////////////////
-      ver="4.1.3"
-      dt="05/12/2017"
+      ver="4.1.4"
+      dt="11/12/2017"
       call headprt(ver,dt)
 
 c///////////////////////////////////////////////////////////////////////
@@ -2614,8 +2616,9 @@ c-----------------------------------------------------------------------
      &)")
 
       write(*,"(/,
-     &' Programs to be tested:      1) NRLMOL     2) SeqQuest   ',
-     &'3) StoBe')")
+     &' Programs to be tested:      1) Bagel      2) NRLMOL     ',
+     &'3) SeqQuest',/,
+     &'                             4) StoBe')")
 
       write(*,"(/,
      &' Unsupported programs:       1) ADF        2) Jaguar')")
