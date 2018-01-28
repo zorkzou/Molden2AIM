@@ -13,7 +13,7 @@
 program ReOrdAtm
 
 implicit none
-integer(kind=4) :: iinp=5, iout=6, igto=71, i, NAtm=0, imod=0
+integer(kind=4) :: iinp=5, iout=6, igto=71, i, NAtm=0, NAtmX=0, imod=0
 integer(kind=4),allocatable :: iord(:)
 character*100 :: ctmp
 character*8 :: starint
@@ -21,8 +21,8 @@ character*8 :: starint
 ! read argument "-m {imod}"
 call ReadInp(ctmp,imod)
 
-! #atoms
-call CountAtm(iinp,iout,NAtm,ctmp)
+! #atoms without and with dummy atoms
+call CountAtm(iinp,iout,NAtm,NAtmX,ctmp)
 
 ! save new MOLDEN file
 write(iout,"('[Molden Format]')")
@@ -41,7 +41,7 @@ if(imod .eq. 0)then
   ! reference atomic ordering in [GTO]
   call RefOrd(iinp,iout,NAtm,iord,ctmp)
   do i=1,NAtm
-    call RdAtmI(iinp,iout,NAtm,iord(i),i,ctmp)
+    call RdAtmI(iinp,iout,NAtmX,iord(i),i,ctmp)
   end do
 else if(imod .eq. 1)then
   call RdAtm(iinp,iout,NAtm,ctmp)
@@ -102,17 +102,23 @@ implicit none
 integer(kind=4) :: iinp, iout, NAtm, i, ia, iz
 real(kind=8) :: xyz(3)
 character*100 :: ctmp
+character*1,external :: L2U
 
 call searchar(iinp,iout,7,"[ATOMS]",ctmp)
 
 do i=1,NAtm
   read(iinp,*)ctmp, ia, iz, xyz(1), xyz(2), xyz(3)
-  if(ia .ne. i)goto 100
+  if(ia .ne. i) goto 100
+  ctmp(1:1) = L2U(ctmp(1:1))
+  if(ctmp(1:1) == "X" .or. ctmp(1:1) == "Q" .or. iz <= 0) goto 200
+
   write(iout,"(a4,2i5,3f20.10)")trim(ctmp), i, iz, xyz
 end do
 return
 
 100   write(iout,"(' Error! This MOLDEN file is not supported!')")
+stop
+200   write(iout,"(' Error! Dummy & ghost atoms are not supported!')")
 stop
 
 return
@@ -138,6 +144,9 @@ do i=1,NAtm
     return
   end if
 end do
+
+write(iout,"(' Error! Atom(',i4,') cannot be found.')") iold
+stop
 
 return
 end
@@ -271,11 +280,12 @@ end
 !
 ! search [Atoms] and count the number of atoms
 !
-subroutine CountAtm(iinp,iout,NAtm,ctmp)
+subroutine CountAtm(iinp,iout,NAtm,NAtmX,ctmp)
 
 implicit none
-integer(kind=4) :: iinp, iout, NAtm
+integer(kind=4) :: iinp, iout, NAtm, NAtmX, i1, i2
 character*100 :: ctmp
+character*3 :: Elm
 
 call searchar(iinp,iout,7,"[ATOMS]",ctmp)
 
@@ -283,6 +293,12 @@ do while(.true.)
   read(iinp,"(100a)",err=100,end=100)ctmp
   if(index(ctmp,'[').ne.0 .and. index(ctmp,']').ne.0) exit
   if(len_trim(ctmp) .eq. 0) cycle
+  NAtmX = NAtmX +1
+! Dummy atom or ghost atom?
+  read(ctmp,*) Elm, i1, i2
+  call charl2u(Elm,len_trim(Elm))
+  if(Elm(1:1) == "X" .or. Elm(1:1) == "Q" .or. i2 == 0) cycle
+
   NAtm = NAtm +1
 end do
 
