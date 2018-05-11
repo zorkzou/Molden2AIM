@@ -4,6 +4,11 @@
 Molden2AIM is a utility program which can be used to create AIM-WFN, AIM-WFX, and NBO-47 files from a Molden file.
 
 ## Recent Changes
+Version 4.2.1 (05/11/2018).
+
+1. The EDF library has been updated for the following cores/elements: ncore = 2 (B), 10 (Na), 28 (Cu, Pd, I, Xe, Cs, Sm, Eu, Gd, Tb), 46 (Cd, Xe), 78 (Pa, Es, Fm), and 92 (Cn, Nh). It's found that these old EDFs may produce a local minimum at R = 0 and lead to a (3,+3) critical point wrongly. Thanks for Dr. Tian Lu for reporting the problem.
+2. The fitting program denfit.f90 has been modified for the above problem.
+
 Version 4.2.0 (01/29/2018).
 
 1. Recoding in Fortran90.

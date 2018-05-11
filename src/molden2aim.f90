@@ -32,8 +32,8 @@ program Molden2AIM
 !=================================================================================================================================
 !  head
 !=================================================================================================================================
- ver = "4.2.0"
- dt  = "01/29/2018"
+ ver = "4.2.1"
+ dt  = "05/11/2018"
  call headprt(ver,dt)
 
 !=================================================================================================================================
@@ -2681,14 +2681,14 @@ Subroutine finalwfx(fwfn,iecp,iunknw,MaxL)
  character*57      :: fwfn
 
  write(*,"(//,'  A WFX file is generated successfully!',/,'  File Name = ',a)")trim(fwfn)
-! with ECP
+! with ECP/MCP
  if(iecp > 0) then
    if(MaxL < 4)then
-     write(*,"(/,2x,'ECPs are found! Please use',/,3x,'AIMALL, Critic2, DensToolKit, MultiWFN, or ORBKIT',/)")
+     write(*,"(/,2x,'ECPs/MCPs are found! Please use',/,3x,'AIMALL, Critic2, DensToolKit, MultiWFN, or ORBKIT',/)")
    else
-     write(*,"(/,2x,'ECPs and G-functions are found! Please use',/,3x,'AIMALL, Critic2, MultiWFN, or ORBKIT',/)")
+     write(*,"(/,2x,'ECPs/MCPs and G-functions are found! Please use',/,3x,'AIMALL, Critic2, MultiWFN, or ORBKIT',/)")
    end if
-! without ECP
+! without ECP/MCP
  else
    if(MaxL < 4)then
      write(*,"(/,2x,'Please use',/,3x,'AIMALL, Critic2, DensToolKit, GPView, MultiWFN, or ORBKIT',/)")

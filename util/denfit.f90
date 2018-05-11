@@ -1,6 +1,6 @@
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !%%%
-!%%% DenFit: a program to fit atomic density using Gaussian s-functions. (2017.05.12)
+!%%% DenFit: a program to fit atomic density using Gaussian s-functions. (2018.05.10)
 !%%%
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !%%%
@@ -106,7 +106,7 @@ do i=1, Npt
 end do
 rr0 = r0 * r0
 
-! The first point r(i18)~1.8
+! There may be an artificial peak after r = 1.8 a.u.
 i18=0
 do i=1, Npt
   if(r(i) >= 1.8d0) then
@@ -157,9 +157,10 @@ do I = 1, NGau0
 ! delete the first function
   call GauRm(NGau0,1,alf0,as0,al0,an0,qn0)
 end do
-! the first idxneg-1 functions should be deleted
+
+! the first idxneg-1 functions are redundant and should be deleted
 if  (idxneg > 1) then
-  write(*,"(' Delete the first ',i3,' redundant functions with min[dRho0]  = ',d20.14)") idxneg-1, drho
+  write(*,"(' Delete the first ',i3,' redundant functions with min[dRho0] = ',d20.14)") idxneg-1, drho
   call GauRm(NGau,-(idxneg-1),alf,as,al,an,qn)
 end if
 
@@ -180,6 +181,12 @@ do while(.true.)
   if( (NC >= 10 .and. NGau < 10) .or. (NC < 10 .and. NGau < 5) ) then
     write(*,"(' The fitting fails!')")
     exit
+  end if
+  call ChkHss(NGau,alf,coef,idxneg)
+  if(idxneg > 0) then
+    write(*,"(' Hessian(r=0) > 0 found!   Delete function-',i3,' with alpha = ',d20.14)") idxneg, alf(idxneg)
+    call GauRm(NGau,idxneg,alf,as,al,an,qn)
+    cycle
   end if
   call ChkPos(NGau,Npt,r,alf,coef,idxneg)
   if(idxneg > 0) then
@@ -408,6 +415,26 @@ do i= i18, Npt, 10
   	exit
   end if
 end do
+
+return
+end
+
+
+!%%%
+!%%% Check Hessian at r=0, which should be negative, i.e. there is a maximum at r=0.
+!%%%
+!%%% Hessian(0) = -2 * hess, where hess = sum[coe(i)*alf(i)]
+!%%%
+subroutine ChkHss(NGau,alf,coef,idxneg)
+implicit real(kind=8) (a-h,o-z)
+real(kind=8) :: alf(NGau), coef(NGau)
+
+idxneg = 0
+hess = 0.0d0
+do i= 1, NGau
+  hess = hess + coef(i)*alf(i)
+end do
+if(hess <= 0.0d0) idxneg = 1
 
 return
 end
