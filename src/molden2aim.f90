@@ -32,8 +32,8 @@ program Molden2AIM
 !=================================================================================================================================
 !  head
 !=================================================================================================================================
- ver = "4.3.0"
- dt  = "02/09/2019"
+ ver = "4.4.0"
+ dt  = "05/27/2020"
  call headprt(ver,dt)
 
 !=================================================================================================================================
@@ -99,24 +99,26 @@ program Molden2AIM
 ! The following integers will be determined later. Do not modify them here.
  ifc4=1              ! a scaling factor for occ. numbers: x 1 (1) or x 2 (2)
  iecp=0              ! PP (ECP or MCP) is used (> 0; = #core_electron) or not (0)
+ iedt=0              ! Type of EDF. X2C/HF (=0) or X2C/PBE0 (=1)
  lsph=0              ! MOs are in Cartesian (0) or spherical (1) basis functions
 
 !=================================================================================================================================
 !  read user's parameters from m2a.ini
 !=================================================================================================================================
- call uinit(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp,irdecp,iunknw,stline)
+ call crtini(iini)
+ call usrini(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp,irdecp,iedt,iunknw,stline)
 
 !=================================================================================================================================
 !  program list which can save MOLDEN file
 !=================================================================================================================================
  doit = .false.
  if(nosupp == 0) then
-   write(*,"(' Do you want to see the information about supported programs? (Yes / [No])',/,' > ',$)")
+   write(*,"(/,' Do you want to see the information about supported programs? (Yes / [No])',/,' > ',$)")
    read(*,"(a1)")yn
    yn=L2U(yn)
    if(yn == 'Y') doit = .true.
  else if(nosupp > 0) then
-   write(*,"(' nosupp > 0: the program list will not be shown.')")
+   write(*,"(/,' nosupp > 0: the program list will not be shown.')")
  else if(nosupp < 0) then
    doit = .true.
  end if
@@ -393,7 +395,7 @@ program Molden2AIM
 
  if(doit) then
 
-   call edfmain(icor,iedf,iecp,nat,nedf)
+   call edfmain(icor,iedf,iecp,iedt,nat,nedf)
 
    call genwfx(iatm,igto,imol,ispn,icor,iedf,iwfx,fwfx,ver,dt,nat,nmotot,nmo,chanet,tolocc,ntote,ncar(1),ncar(2),nedf,iecp,  &
      ifc4,ifspin,ifbeta,iunknw,stline)
@@ -574,10 +576,10 @@ Subroutine writemol(iwfn,imol,nmo,ng,ngc,tolocc,ifc4,tmp)
      cfmo(j)=cfmo(j)*scalmo(j)
    end do
    if(abs(occ) >= tolocc)then
-     if(abs(eng) < 9999.d0)then
-       write(iwfn,1000)i,occ*dble(ifc4),eng
+     if(abs(ene) < 9999.d0)then
+       write(iwfn,1000)i,occ*dble(ifc4),ene
      else
-       write(iwfn,1100)i,occ*dble(ifc4),eng
+       write(iwfn,1100)i,occ*dble(ifc4),ene
      end if
 !    N*cgto*cmo
      write(iwfn,"(5d16.8)")(cn(j)*conf(j)*cfmo(icmo(j)),j=1,ng)
@@ -591,17 +593,102 @@ end
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
+! create m2a.ini
+!
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Subroutine crtini(iini)
+ implicit real(kind=8) (a-h,o-z)
+
+ open(iini,file='m2a.ini',status='old',err=100)
+ close(iini)
+ return
+
+ 100  continue
+ open(iini,file='m2a.ini',status='new')
+ rewind(iini)
+
+ write(iini,"('########################################################################')")
+ write(iini,"('#  In the following 8 parameters,')")
+ write(iini,"('#     >0:  always performs the operation without asking the user')")
+ write(iini,"('#     =0:  asks the user whether to perform the operation')")
+ write(iini,"('#     <0:  always neglect the operation without asking the user')")
+ write(iini,"('molden= 0           ! Generating a standard Molden file in Cart. function')")
+ write(iini,"('wfn= 0              ! Generating a WFN file')")
+ write(iini,"('wfncheck= 0         ! Checking normalization for WFN')")
+ write(iini,"('wfx= 0              ! Generating a WFX file (not implemented)')")
+ write(iini,"('wfxcheck= 0         ! Checking normalization for WFX (not implemented)')")
+ write(iini,"('nbo= 0              ! Generating a NBO .47 file')")
+ write(iini,"('nbocheck= 0         ! Checking normalization for NBO .47 file')")
+ write(iini,"('wbo= 0              ! GWBO after the .47 file being generated')")
+ write(iini,*)
+ write(iini,"('########################################################################')")
+ write(iini,"('#  Which quantum chemistry program is used to generate the MOLDEN file?')")
+ write(iini,"('#  1: ORCA, 2: CFOUR, 3: TURBOMOLE, 4: JAGUAR (not supported),')")
+ write(iini,"('#  5: ACES2, 6: MOLCAS, 7: PSI4, 8: MRCC, 9: NBO 6 (> ver. 2014),')")
+ write(iini,"('#  10:CRYSTAL (0D only),')")
+ write(iini,"('#  0: other programs, or read [Program] xxx from MOLDEN.')")
+ write(iini,"('#')")
+ write(iini,"('#  If a non-zero value is given, [Program] xxx in MOLDEN will be ignored.')")
+ write(iini,"('#')")
+ write(iini,"('program=0')")
+ write(iini,*)
+ write(iini,"('########################################################################')")
+ write(iini,"('#  For ECP: read core information from Molden file')")
+ write(iini,"('#<=0: if the total_occupation_number is smaller than the total_Za, ask')")
+ write(iini,"('#     the user whether to read core information')")
+ write(iini,"('# >0: always search and read core information')")
+ write(iini,"('rdcore=0')")
+ write(iini,*)
+ write(iini,"('########################################################################')")
+ write(iini,"('#  Type of EDF')")
+ write(iini,"('# =0: EDF by X2C/HF')")
+ write(iini,"('# =1: EDF by X2C/PBE0')")
+ write(iini,"('edftyp=0')")
+ write(iini,*)
+ write(iini,"('########################################################################')")
+ write(iini,"('#  Which orbirals will be printed in the WFN/WFX file?')")
+ write(iini,"('# =0: print only the orbitals with occ. number > 5.0d-8')")
+ write(iini,"('# <0: print only the orbitals with occ. number > 0.1 (debug only)')")
+ write(iini,"('# >0: print all the orbitals')")
+ write(iini,"('iallmo=0')")
+ write(iini,*)
+ write(iini,"('########################################################################')")
+ write(iini,"('#  Used for WFX only')")
+ write(iini,"('# =0: print UNKNOWN for Energy and Virial Ratio')")
+ write(iini,"('# .ne. 0: print 0.0 for Energy and 2.0 for Virial Ratio')")
+ write(iini,"('unknown=1')")
+ write(iini,*)
+ write(iini,"('########################################################################')")
+ write(iini,"('#  Close supporting information or not')")
+ write(iini,"('# <0: print; =0: asks the user; >0: do not print')")
+ write(iini,"('nosupp=1')")
+ write(iini,*)
+ write(iini,"('########################################################################')")
+ write(iini,"('#  The following parameters are used only for debugging.')")
+ write(iini,"('clear=1            ! delete temporary files (1) or not (0)')")
+ write(iini,*)
+ write(iini,"('########################################################################')")
+ write(iini,*)
+
+ close(iini)
+ write(*,"(/,' m2a.ini has been created.')")
+
+ return
+End
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!
 ! Read user's initialization parameters from m2a.ini
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine uinit(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp,irdecp,iunknw,ctmp)
+Subroutine usrini(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp,irdecp,iedt,iunknw,ctmp)
  implicit real(kind=8) (a-h,o-z)
- parameter(nkey=14)
+ parameter(nkey=15)
  Dimension         :: ICntrl(8)
  character*100     :: ctmp
  character*9       :: keyword(nkey)
  data keyword/"MOLDEN=","WFN=","WFX=","NBO=","WFNCHECK=","WFXCHECK=","NBOCHECK=","WBO=","PROGRAM=","CLEAR=","IALLMO=",  &
-   "NOSUPP=","RDCORE=","UNKNOWN="/
+   "NOSUPP=","RDCORE=","EDFTYP=","UNKNOWN="/
 
  open(iini,file='m2a.ini',status='old',err=9000)
  rewind(iini)
@@ -652,6 +739,9 @@ Subroutine uinit(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp,irdecp,iunknw,ctmp)
        irdecp = 0
        if(keyvalue /= 0) irdecp = 1
      case(14)
+       iedt = 0
+       if(keyvalue == 1) iedt = 1
+     case(15)
        iunknw = 0
        if(keyvalue /= 0) iunknw = 1
    end select
@@ -2514,7 +2604,7 @@ Subroutine filename(imod,fmdn,fwfn,fwfx,fnbo)
  character*7       :: exten(8)
  data exten/'.mol   ','.MOL   ','.mold  ','.MOLD  ','.molden','.MOLDEN','.gab   ','.GAB   '/
 
- write(*,"(///)")
+ write(*,"(//)")
  100  write(*,"(' Type in the MOLDEN/GABEDIT file name within 50 characters:',/,  &
         ' (extension mol/mold/molden/gab can be omitted; default: MOLDEN)',/,' > ',$)")
  read(*,"(a50)")fmod(1)(:)
@@ -3314,7 +3404,7 @@ end
 ! main subroutine of EDF library.
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine edfmain(icor,iedf,iecp,nat,nedf)
+Subroutine edfmain(icor,iedf,iecp,iedftyp,nat,nedf)
  implicit real(kind=8) (a-h,o-z)
  parameter(MxEDF=45)
  dimension         :: edfa(MxEDF),edfc(MxEDF)
@@ -3332,7 +3422,12 @@ Subroutine edfmain(icor,iedf,iecp,nat,nedf)
  do i=1,nat
    read(icor,*)iz,ncore
    if(ncore > 0)then
-     call EDFLIB(iz,ncore,nfun,edfa,edfc)    ! it's assumed that nfun <= 40
+     ! it's assumed that nfun <= 40
+     if(iedftyp == 0) then
+       call EDFLIB(iz,ncore,nfun,edfa,edfc)
+     else
+       call EDFPBE0(iz,ncore,nfun,edfa,edfc)
+     end if
 
      if(nfun > 0) then
        nedf = nedf + nfun
@@ -3342,7 +3437,13 @@ Subroutine edfmain(icor,iedf,iecp,nat,nedf)
          x = sqrt(pi/edfa(j))
          acore = acore + edfc(j)*x*x*x
        end do
-       write(*,"('  Iatm=',i4,', ZA=',i4,', NCore=',i4,', ACore=',f14.9,': EDF data from library')") i, iz, ncore, acore
+       if(iedftyp == 0) then
+         write(*,"('  Iatm=',i4,', ZA=',i4,', NCore=',i4,', ACore=',f14.9,': from the EDF library by X2C/HF.')") &
+           i, iz, ncore, acore
+       else
+         write(*,"('  Iatm=',i4,', ZA=',i4,', NCore=',i4,', ACore=',f14.9,': from the EDF library by X2C/PBE0.')") &
+           i, iz, ncore, acore
+       end if
      else if(ncore > 0) then
 !      Generate EDF using the tight core density function, ie.
 !      alpha = 4pi, c = 8Ncore
@@ -3751,7 +3852,7 @@ Subroutine sph2car(lq,fi,fo)
     v45_56 =-0.8964214570d0)        !-sqrt(45/56)
 
 ! In pure basis functions, MOLDEN ordering is used.
-! In Cartesian basis functions, MOLDEN order is used and will be re-ordered in subroutine writecnt.
+! In Cartesian basis functions, MOLDEN ordering is used and will be re-ordered in subroutine writecnt.
 ! Ref. subroutine purdf in espot.f of MOLDEN 4.8. The result agrees with that of MOLPRO.
 
 ! 6D / 5D
@@ -3829,7 +3930,7 @@ Subroutine backupmols(imol,ispn,imo0,nmo,nmotot,sumocc,ifspin,ifbeta,iprog,th,tm
  dimension         :: npure(5),puremo(9),ncart(5),cartmo(15),scal(9)
  data npure/1,3,5,7,9/,ncart/1,3,6,10,15/
 
-! Scale factors for Orca
+! Scaling factors for Orca
 !        class                           factor
 !   1    s                             * 1.0
 !        p
@@ -3888,7 +3989,7 @@ Subroutine backupmols(imol,ispn,imo0,nmo,nmotot,sumocc,ifspin,ifbeta,iprog,th,tm
      ltyp=ibstyp(i)
      nrd=npure(ltyp+1)
      nou=ncart(ltyp+1)
-!    Scale factors for Crystal
+!    Scaling factor for Crystal
 !      1    s,p,d                         * 1.0
 !      2    f                             *-1.0
      if(iprog ==10) then
@@ -5014,7 +5115,7 @@ end
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
-! obtain scale factor for mrcc (Cart.)
+! obtain scaling factors for mrcc (Cart.)
 ! class                                factor
 ! 1    s                             * 1.0
 !      p(x,y,z)                      * 1.0
@@ -5056,7 +5157,7 @@ end
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
-! obtain scale factor for turbomole
+! obtain scaling factors for turbomole
 ! class                                factor
 ! 1    s                             * 1.0
 !      p
@@ -5086,7 +5187,7 @@ end
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
-! obtain scale factor for cfour
+! obtain scaling factors for cfour
 ! class                                factor
 ! 1    s                             * 1.0
 !      p(x,y,z)
@@ -5367,9 +5468,8 @@ Subroutine pattml(itype,l,m,n,info)
 end
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+! Obtain the xyz pattern for a given Cartesian type number. It is used in WFN and WFX.
 !
-! Obtain the xyz pattern for a given Cartesian type number. It is
-! used in WFN and WFX.
 ! 1  S     | 11 FXXX  | 21 GXXXX | 31 GXXZZ |
 ! 2  PX    | 12 FYYY  | 22 GYYYY | 32 GYYZZ |
 ! 3  PY    | 13 FZZZ  | 23 GZZZZ | 33 GXXYZ |

@@ -1,6 +1,6 @@
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !%%%
-!%%% DenFit: a program to fit atomic density using Gaussian s-functions. (2018.05.10)
+!%%% DenFit: a program to fit atomic density using Gaussian s-functions. (2019.04.02)
 !%%%
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !%%%
@@ -182,12 +182,6 @@ do while(.true.)
     write(*,"(' The fitting fails!')")
     exit
   end if
-  call ChkHss(NGau,alf,coef,idxneg)
-  if(idxneg > 0) then
-    write(*,"(' Hessian(r=0) > 0 found!   Delete function-',i3,' with alpha = ',d20.14)") idxneg, alf(idxneg)
-    call GauRm(NGau,idxneg,alf,as,al,an,qn)
-    cycle
-  end if
   call ChkPos(NGau,Npt,r,alf,coef,idxneg)
   if(idxneg > 0) then
     write(*,"(' Negative density found!   Delete function-',i3,' with alpha = ',d20.14)") idxneg, alf(idxneg)
@@ -203,6 +197,13 @@ do while(.true.)
   call ChkAPk(NGau,Npt,i18,r,alf,coef,idxneg)
   if(idxneg > 0) then
     write(*,"(' Artificial peak found!    Delete function-',i3,' with alpha = ',d20.14)") idxneg, alf(idxneg)
+    call GauRm(NGau,idxneg,alf,as,al,an,qn)
+    cycle
+  end if
+  ! to get a smaller error at dRho(1), ChkHss must be done at the last step
+  call ChkHss(NGau,alf,coef,idxneg)
+  if(idxneg > 0) then
+    write(*,"(' Hessian(r=0) > 0 found!   Delete function-',i3,' with alpha = ',d20.14)") idxneg, alf(idxneg)
     call GauRm(NGau,idxneg,alf,as,al,an,qn)
     cycle
   end if
