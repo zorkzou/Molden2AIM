@@ -6,7 +6,7 @@ Molden2AIM is a utility program which can be used to create AIM-WFN, AIM-WFX, an
 ## Recent Changes
 Version 4.4.0 (05/27/2020).
 
-1. A new X2C/PBE0 EDF library (by Chun Gao) can take core correlations into account, which may be requested by `edftyp=1` in `m2a.ini`. Some test calculations of noble gas atoms with 22 functionals showed that PBE0 can reproduce the core densities of CCSD(T,full) with better agreements.
+1. A new X2C/PBE0 EDF library (by Chun Gao) can take core correlations into account, which may be requested by `edftyp=1` in `m2a.ini`. Some test calculations of noble gas atoms with 22 functionals showed that PBE0 can reproduce the core densities of CCSD(T,full) with the best agreements.
 2. The initialization file `m2a.ini` may be generated automatically if it doesn't exist.
 3. The fitting program denfit.f90 has been modified to improve the accuracy.
 4. Bug fix: energies in the WFN file were wrong.
