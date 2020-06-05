@@ -114,7 +114,7 @@ program Molden2AIM
  lbeta=0             ! 0/1: without / with beta spin
  lspout=0            ! 0/1: saved MOs are in Cartesian or spherical basis functions
  tolocc=0.0d0        ! tolerance of occupation number
- nbopro=0            ! 0/1: more data will be printed in NBO-47 if nbopro=1.
+ nbopro=0            ! 0/1: more data will be printed in NBO-47 if nbopro=1
 
 !=================================================================================================================================
 !  read user's parameters from m2a.ini
@@ -417,7 +417,7 @@ program Molden2AIM
    end if
 
    if(doit) then
-     call CheckWFX(iwfx,nat,ncar(1),MaxL,ierr,stline)
+     call CheckWFX(iwfx,nat,ncar(1),nmotot,MaxL,ierr,stline)
      if(ierr /= 0) goto 9910
    end if
 
@@ -534,7 +534,7 @@ program Molden2AIM
    close(isym,status='delete')
  end if
 
- call estop
+ call estop(0)
 
  8000  format(1x,77('='))
 end
@@ -679,7 +679,7 @@ Subroutine CheckNBO(inbo,nbopro,NAtom,TotE1,info,ctmp)
     end do
     if(k == 1 .and. iuhf == 2) then
       write(*,"('  Error of orthogonality in C^T * S * C - I   = ',f18.10,' (o,alpha)',/,48x,f18.10,' (d,alpha)')") erro,errd
-    else if(k == 2 .and. iuhf == 2) then
+    else if(k == 2) then
       write(*,"(48x,f18.10,' (o,beta)',/,48x,f18.10,' (d,beta)')") erro,errd
     else
       write(*,"('  Error of orthogonality in C^T * S * C - I   = ',f18.10,' (o)',/,48x,f18.10,' (d)')") erro,errd
@@ -700,7 +700,7 @@ end
 ! Check the AIM-WFX file
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine CheckWFX(iwfx,MaxAtm,maxpg,MaxL,info,ctmp)
+Subroutine CheckWFX(iwfx,MaxAtm,maxpg,NMO,MaxL,info,ctmp)
  implicit real(kind=8) (a-h,o-z)
  parameter(tole=5.d-5,tola=1.d-6)
  allocatable       :: smat(:), Occ(:), r(:,:), Expon(:), CMO(:), FNor(:), ICent(:), IType(:), scr1(:), scr2(:,:)
@@ -718,7 +718,7 @@ Subroutine CheckWFX(iwfx,MaxAtm,maxpg,MaxL,info,ctmp)
  ! read basis function from the *.WFX file
  write(*,"(/,'  Reading basis functions...')")
  call RdBsx(iwfx,MaxAtm,maxpg,NMO,NGauss,NAtom,r,Expon,ICent,IType,FNor,ctmp,tag,info)
-   if(info /= 0) goto 5010
+   if(info /= 0) goto 5000
 
  ! compute the overlap matrix
  write(*,"('  Computing the overlap matrix...')")
@@ -1333,7 +1333,7 @@ Subroutine DrvNBO(inbo,fnbo,ver,dt,nbopro,  nat,iza,icore,xyz,  MaxL,lsph,nshell
   dimension         :: occ(nmo), ene(nmo)
   logical           :: ifscf
 
-  ! iopen is 1 or 2 (UHF/UKS)
+  ! iopen is 1 (RHF/RKS) or 2 (UHF/UKS)
   focc = dble(2/iopen)
 
   ifscf = .false.
@@ -1532,7 +1532,7 @@ Subroutine DrvNBO(inbo,fnbo,ver,dt,nbopro,  nat,iza,icore,xyz,  MaxL,lsph,nshell
       end if
     else if(lqnm(ishell) == 6)then
       write(*,"(/,' *** Error! LQ > 5 in sub. GTFLab.')")
-      stop
+      call estop(1)
     end if
     nc(ibas+1:ibas+ncomp(ishell)) = mapatm(ishell)
     ibas = ibas + ncomp(ishell)
@@ -1669,7 +1669,7 @@ Subroutine DrvNBO(inbo,fnbo,ver,dt,nbopro,  nat,iza,icore,xyz,  MaxL,lsph,nshell
   if(MaxL >= 6)then
     nl =11
     write(*,"(/,' *** Error! LQ > 5 in sub. wrctr.')")
-    stop
+    call estop(1)
   end if
 
   write(inbo,"(' $END')")
@@ -2768,7 +2768,7 @@ Subroutine writecnt(iwfn,mode,  nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto, 
        it=35
      case default
        write(*,"(/,' *** Error! LQ > 5 in sub. writecnt.')")
-       stop
+       call estop(1)
    end select
    do i=1,nfun
      igc = igc + 1
@@ -3132,7 +3132,7 @@ Subroutine car2sph(lq,c2sd,c2sf,c2sg,c2sh,fi,fo)
      end do
    case default
      write(*,"(/,' *** Error! LQ > 5 in sub. car2sph.')")
-     stop
+     call estop(1)
  end select
 
  return
@@ -3182,7 +3182,7 @@ Subroutine sph2car(lq,s2cd,s2cf,s2cg,s2ch,fi,fo)
      end do
    case default
      write(*,"(/,' *** Error! LQ > 5 in sub. sph2car.')")
-     stop
+     call estop(1)
  end select
 
  return
@@ -3830,7 +3830,7 @@ Subroutine power(al,n1,n2,nf)
      nf=893025
    case default
      write(*,"(/,' *** Error! LQ > 5 in sub. power.')")
-     stop
+     call estop(1)
  end select
 
  return
@@ -3895,9 +3895,11 @@ end
    read(*,"(a1)")yn
    yn=L2U(yn)
    lrdecp = 0
-   if(yn /= 'N') lrdecp = 3
-   write(*,"(/,' No [CORE] or [PSEUDO] data found. You have to type them in this terminal.',/, &
-   ' Please consult the format of [Core]. Use an empty line to end the input.')")
+   if(yn /= 'N') then
+     lrdecp = 3
+     write(*,"(/,' No [CORE] or [PSEUDO] data found. You have to type them in this terminal.',/, &
+       ' Please consult the format of [Core]. Use an empty line to end the input.')")
+   end if
  end if
 
  icore = 0
@@ -3958,7 +3960,15 @@ end
   character*1       :: ioc
 
   ierr=1
+
+  ! CFour: RHF with dble(nchar-lecp)-2*sumocc = 0
   !chanet=dble(nchar-lecp)-sumocc
+  if(iprog == 2 .and. ifbeta == 0 .and. abs(sumocc-chanet) <= 1.0d-10) then
+    lfc4=2
+    ierr=0
+    return
+  end if
+
   write(*,"(//,' Warning: the total electron is different from the sum of occupations!',//,4x,  &
     '#Electron        =',f10.4,/,4x,'Sum_Occupation   =',f10.4,/,4x,  &
     '#Core Electron   =',f10.4,/,4x,'Net Charge       =',f10.4,//,' The reasons may be',/,  &
@@ -3996,11 +4006,11 @@ end
         goto 9910
       end if
     case("3")
-      write(*,"(///,' Occupations are multiplied by 2.0...')")
       if(ifbeta == 1) then
         write(*,"(/,' *** Error! This is not true since there are beta MOs.')")
         goto 9910
       end if
+      write(*,"(///,' Occupations are multiplied by 2.0...')")
       lfc4=2
       chanet=dble(nchar-lecp)-sumocc*dble(lfc4)
       write(*,"(/,4x,                     &
@@ -4966,7 +4976,7 @@ function clm(l,m)
 
  if(l > 5) then
    write(*,"(//,' *** Error! L > 5 in function clm.')")
-   stop
+   call estop(1)
  end if
 
  clm=factorial(l)/(factorial(m)*factorial(l-m))
@@ -5515,15 +5525,24 @@ end
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Subroutine countmo(imod,iatm,nprog,iname,natm,nchar,nbas,nmo,tmp1,ierr)
  implicit real(kind=8) (a-h,o-z)
- character*20      :: pname(nprog)
+ character*10      :: pname(nprog)
  character*100     :: tmp1
  100  format(' >>> This MOLDEN file was generated by ',a,/)
 
  ierr = 0
 
  ! MOLDEN files generated by the following programs require special modifications
- !             1       2           3        4       5        6      7      8      9        10
- pname = (/'ORCA','CFOUR','TURBOMOLE','JAGUAR','ACES2','MOLCAS','PSI4','MRCC','NBO6','CRYSTAL'/)
+ ! (The same length is needed by modern compilers!)
+ pname = (/'ORCA      ',    &  !  1
+           'CFOUR     ',    &  !  2
+           'TURBOMOLE ',    &  !  3
+           'JAGUAR    ',    &  !  4
+           'ACES2     ',    &  !  5
+           'MOLCAS    ',    &  !  6
+           'PSI4      ',    &  !  7
+           'MRCC      ',    &  !  8
+           'NBO6      ',    &  !  9
+           'CRYSTAL   '/)      ! 10
  ! < 0: same as 0 except the name of QC program is known.
  ! If MOLCAS uses spherical functions, iname will be reset to -6 later.
 
@@ -6032,7 +6051,7 @@ Subroutine DGEMM(TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
  END IF
  IF (INFO /= 0) THEN
      WRITE( *, FMT = 9999 ) INFO
-     call estop
+     call estop(1)
  END IF
 
 ! Quick return if possible.
@@ -6706,16 +6725,17 @@ end
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
-! read an <ENTER> and stop
+! read an <ENTER> and (if imod /= 0) stop.
+! stop can trigger a message "Warning: ieee_inexact is signaling" by pgf90.
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine estop
+Subroutine estop(imod)
  implicit real(kind=8) (a-h,o-z)
 
  write(*,"(//,' Press <ENTER> to exit',/)")
  read(*,*)
 
- stop
+ if(imod /= 0) stop
 
  return
 end
