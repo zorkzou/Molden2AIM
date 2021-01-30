@@ -37,8 +37,8 @@ program Molden2AIM
 !=================================================================================================================================
 !  head
 !=================================================================================================================================
- ver = "5.0.2"
- dt  = "10/09/2020"
+ ver = "5.0.3"
+ dt  = "01/30/2021"
  call headprt(ver,dt)
 
 !=================================================================================================================================
@@ -243,7 +243,7 @@ program Molden2AIM
 !  compute scaling factors of MO. carmo is used as scratch.
 !  lsca=1 if MO coeffients need to be scaled.
 !=================================================================================================================================
- call carmoscale(iprog,nshell,lqnm,lsca,ncar(2),scalmocar,carmo,ierr)
+ call carmoscale(iprog,nshell,lqnm,lsca,ncar(2),scalmocar,ierr)
    if(ierr == 1) goto 9910
 
 !=================================================================================================================================
@@ -460,7 +460,7 @@ program Molden2AIM
 
    ! Generalized Wiberg bond order (i.e. Mayer's bond order for RHF/UHF/RKS/UKS)?
    if(nat < 2) then
-   	 doit = .false.
+     doit = .false.
    else
      if(ICntrl(8) > 0)then
        doit = .true.
@@ -2304,8 +2304,8 @@ Subroutine genwfx(iwfx,fwfx,ver,dt,  iedf,lecp,iedftyp,chanet,ntote,nat,iza,icor
         '  (default: 1 for even- and 2 for odd-number of electron system)',/,' > ',$)")
       read(*,"(a10)",err=50) ctmp
       if(len_trim(ctmp(1:10)) == 0) then
-      	MS = 1
-      	if(mod(ntote,2) == 1) MS = 2
+        MS = 1
+        if(mod(ntote,2) == 1) MS = 2
       else
         read(ctmp(1:10),*,err=50) MS
       end if
@@ -2356,7 +2356,7 @@ Subroutine genwfx(iwfx,fwfx,ver,dt,  iedf,lecp,iedftyp,chanet,ntote,nat,iza,icor
   do i=1,nat
     write(ctmp(11:100),*)i
     call trulen(ctmp(11:100),len2,len3,len1)
-    call ElemZA(1,ctmp,iza(i),ctmp)
+    call ElemZA(1,ctmp,iza(i))
     len1=len_trim(ctmp(1:3))
     write(iwfx,"(a)")ctmp(1:len1)//ctmp(len2+10:len3+10)
   end do
@@ -2388,7 +2388,7 @@ Subroutine genwfx(iwfx,fwfx,ver,dt,  iedf,lecp,iedftyp,chanet,ntote,nat,iza,icor
 
   ! print basis functions
   allocate(expg(ncarp), conf(ncarp), ityp(ncarp), icmo(ncarp), cn(ncarp))
-  call writecnt(iwfx,1,  nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  ncarp,expg,conf,ityp,icmo,cn)
+  call writecnt(iwfx,1,  nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  ncarp,expg,conf,ityp,icmo)
 
   !<<<<<<<<<<<<<<<<<< ECP >>>>>>>>>>>>>>>>>>
   ! see sub. edfmain for the format of the lecp data file
@@ -2648,7 +2648,7 @@ Subroutine genwfn(iwfn,fwfn,ver,dt,lpspin,  nat,lecp,iza,icore,xyz,  MaxL,nshell
  call writeatm(iwfn,nat,iza,icore,xyz,tmp)
 
  allocate(expg(ncarp), conf(ncarp), ityp(ncarp), icmo(ncarp), cn(ncarp))
- call writecnt(iwfn,0,  nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  ncarp,expg,conf,ityp,icmo,cn)
+ call writecnt(iwfn,0,  nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  ncarp,expg,conf,ityp,icmo)
  call writemol(iwfn,nmotot,ncarp,ncarc,ene,occup,lprtmo,carmo,expg,conf,ityp,icmo,cn)
  deallocate(expg, conf, ityp, icmo, cn)
 
@@ -2674,7 +2674,7 @@ Subroutine genwfn(iwfn,fwfn,ver,dt,lpspin,  nat,lecp,iza,icore,xyz,  MaxL,nshell
   character*3       :: am
 
   do i=1,nat
-    call ElemZA(1,am,iza(i),am)
+    call ElemZA(1,am,iza(i))
     write(iwfn,"(2x,A3,i3,4x,'(CENTRE',i3,') ',3f12.8,'  CHARGE =',f5.1)")am,i,i,xyz(:,i),dble(iza(i)-icore(i))
   end do
 
@@ -2765,10 +2765,13 @@ end
 ! See the WFX format for ITyp.
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine writecnt(iwfn,mode,  nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  npg,expg,conf,ityp,icmo,icnt)
+Subroutine writecnt(iwfn,mode,  nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  npg,expg,conf,ityp,icmo)
  implicit real(kind=8) (a-h,o-z)
  dimension         :: mapatm(nshell), lqnm(nshell), nshlls(nshell), nshlln(nshell), expgto(nshell), congto(nshell),  &
-                      expg(npg), conf(npg), ityp(npg), icmo(npg), icnt(npg)
+                      expg(npg), conf(npg), ityp(npg), icmo(npg)
+ allocatable       :: icnt(:)
+
+ allocate(icnt(npg))
 
  igc = 0
  ipt2= 0
@@ -2833,6 +2836,8 @@ Subroutine writecnt(iwfn,mode,  nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto, 
    call wfxlab(iwfn,1,"Primitive Exponents")
  end if
 
+ deallocate(icnt)
+
  return
 
  !---------------------------------------------------------------------- private subroutines
@@ -2891,7 +2896,7 @@ Subroutine genmdn(fmdn,inmd,isym,ver,dt,nat,MaxL,lecp,iza,icore,xyz, nshell,mapa
  ! coordinates
  write(inmd,"('[Atoms] AU')")
  do i=1,nat
-   call ElemZA(1,tmp,iza(i),tmp)
+   call ElemZA(1,tmp,iza(i))
    write(inmd,"(2x,a3,2i5,3f20.10)") tmp(1:3), i, iza(i)-icore(i), xyz(:,i)
  end do
 
@@ -2899,7 +2904,7 @@ Subroutine genmdn(fmdn,inmd,isym,ver,dt,nat,MaxL,lecp,iza,icore,xyz, nshell,mapa
  if(lecp > 0)then
    write(inmd,"('[PSEUDO]')")
    do i=1,nat
-     call ElemZA(1,tmp,iza(i),tmp)
+     call ElemZA(1,tmp,iza(i))
      write(inmd,"(a3,1x,2i6)") tmp(1:3), i, iza(i)-icore(i)
    end do
  end if
@@ -4113,8 +4118,7 @@ Subroutine RdCore2(nat,ncor,iza,ico,ctmp,ierr)
        K=ichar(atom(L:L))
        if( (K < 65) .or. (K > 90) ) goto 9020
      end do
-     call ElemZA(0,atom,za,za)
-     IZ = nint(za)
+     call ElemZA(0,atom,IZ)
      ! check: ZA > icore
      if(IZ <= icore) goto 9040
      ifind = .false.
@@ -4162,7 +4166,7 @@ Subroutine RdCore2(nat,ncor,iza,ico,ctmp,ierr)
    write(*,"(//,'  Core information',//,'    I    Atom       ZA    NCore',/)")
    do i=1,nat
      if(ico(i) > 0) then
-       call ElemZA(1,atom,iza(i),ctmp)
+       call ElemZA(1,atom,iza(i))
        write(*,"(i5,5x,a3,2i9)")i,atom,iza(i),ico(i)
      end if
    end do
@@ -4273,8 +4277,7 @@ Subroutine RdCore1(imtm,nat,ncor,lrdecp,iza,ico,ctmp,ierr)
          K=ichar(atom(L:L))
          if( (K < 65) .or. (K > 90) ) goto 9020
        end do
-       call ElemZA(0,atom,za,za)
-       IZ = nint(za)
+       call ElemZA(0,atom,IZ)
        ! check: ZA > icore
        if(IZ <= icore) goto 9040
        ifind = .false.
@@ -4324,7 +4327,7 @@ Subroutine RdCore1(imtm,nat,ncor,lrdecp,iza,ico,ctmp,ierr)
    write(*,"(//,'  Core information',//,'    I    Atom       ZA    NCore',/)")
    do i=1,nat
      if(ico(i) > 0) then
-       call ElemZA(1,atom,iza(i),ctmp)
+       call ElemZA(1,atom,iza(i))
        write(*,"(i5,5x,a3,2i9)")i,atom,iza(i),ico(i)
      end if
    end do
@@ -4683,10 +4686,13 @@ end
 ! compute scaling factors for Cartesian MO coefficients
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine carmoscale(iprog,nshell,lqnm,isclmo,ncg,scalmo,itypc,ierr)
+Subroutine carmoscale(iprog,nshell,lqnm,isclmo,ncg,scalmo,ierr)
  implicit real(kind=8) (a-h,o-z)
- dimension         :: lqnm(nshell), scalmo(ncg), itypc(ncg)
+ dimension         :: lqnm(nshell), scalmo(ncg)
+ allocatable       :: itypc(:)
  character*1       :: al
+
+ allocate(itypc(ncg))
 
  ierr = 0
  ip1=0
@@ -4849,7 +4855,10 @@ Subroutine carmoscale(iprog,nshell,lqnm,isclmo,ncg,scalmo,itypc,ierr)
    scalmo=1.d0
  end if
 
- 9999  return
+ 9999  continue
+ deallocate(itypc)
+
+ return
 end
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -5595,7 +5604,7 @@ Subroutine RdProg(imod,nprog,iname,tmp1,ierr)
    ! iname is unknown
    iname = 0
    rewind(imod)
-   do while(.true.)
+   Loop1: do while(.true.)
      read(imod,"(a100)",iostat=irdfin)tmp1
      if(irdfin /= 0) exit
      call charl2u(tmp1)
@@ -5615,29 +5624,66 @@ Subroutine RdProg(imod,nprog,iname,tmp1,ierr)
          tmp1(L1:L1+8) = "         "
        end if
        call trulen(tmp1,L1,L2,length)
-       do i=1,nprog
+       Loop2: do i=1,nprog
          if(index(tmp1(L1:L2),trim(pname(i))) /= 0)then
            iname=i
            write(*,100)trim(pname(iname))
-           exit
+           exit Loop2
          end if
-       end do
+       end do Loop2
        if(iname == 0)  goto 8200
+       exit Loop1
+     end if
+
+     ! [MOLPRO VARIABLES] block
+     if(index(tmp1,'[MOLPRO VARIABLES]') /= 0) then
+       iname=0
+       write(*,100)"Molpro"
+       exit Loop1
      end if
 
      ! [TITLE] block
      if(index(tmp1,'[TITLE]') /= 0) then
-       ! FORMAT:
+       read(imod,"(a100)",end=8300)tmp1
+       !
+       ! ======================================================================= Orca
        ! [TITLE]
        !  Molden file created by orca_2mkl for BaseName=...
-       read(imod,"(a100)",end=8300)tmp1
+       !
        if(index(tmp1,"Molden file created by orca_2mkl for BaseName=") /= 0)then
          iname=1
          write(*,100)trim(pname(iname))
-         exit
+         exit Loop1
+       !
+       ! ======================================================================= Jaguar
+       ! [TITLE]
+       ! Jaguar job: ...
+       !
+       else if(index(tmp1,"Jaguar job:") /= 0)then
+         iname=4
+         write(*,100)trim(pname(iname))
+         exit Loop1
+       !
+       ! ======================================================================= Molden2AIM
+       ! [TITLE]
+       !  Molden2AIM, Version
+       !
+       else if(index(tmp1,"Molden2AIM, Version") /= 0)then
+         iname=0
+         write(*,100)"Molden2AIM"
+         exit Loop1
+       !
+       ! ======================================================================= TeraChem
+       ! [TITLE]
+       ! Written by TeraChem
+       !
+       else if(index(tmp1,"Written by TeraChem") /= 0)then
+         iname=0
+         write(*,100)"TERACHEM"
+         exit Loop1
        end if
      end if
-   end do
+   end do Loop1
  end if
 
  deallocate(pname)
@@ -6526,9 +6572,8 @@ Subroutine RdCoord(tmp,ia,iz,x,y,z,ierr)
  read(tmp,*,err=1020,end=1020)element,ia,iz0,x,y,z
  ! eliminate non-letter characters for a special case, for example, O_1 (Dalton), C1 (Cadpac)
  call rmnumb(3,element)
- call ElemZA(0,element,za,za)
+ call ElemZA(0,element,iz)
  ! In the Molden program, atomic_name can be any characters and is omitted, so iz can be 0. In this case read iz from iz0.
- iz = nint(za)
  if(iz == 0) iz = iz0
 
  if(iz <= 0) then
@@ -6699,13 +6744,11 @@ End
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
-! Mode = 0 : returns nuclear charge zchar for an element symbol "el"
-!            iza is not used.
-!   /= 0 : returns element symbol "el" for nuclear charge iza
-!            zchar is not used.
+! Mode = 0 : returns nuclear charge iza for an element symbol "el"
+!     /= 0 : returns element symbol "el" for nuclear charge iza
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine ElemZA(Mode,el,iza,zchar)
+Subroutine ElemZA(Mode,el,iza)
  implicit real(kind=8) (a-h,o-z)
  parameter (maxza=120)
  character*3       :: el,atomlib(maxza)
@@ -6721,10 +6764,10 @@ Subroutine ElemZA(Mode,el,iza,zchar)
  if (Mode == 0) then
 
    call charl2u(el)
-   zchar = 0.d0
+   iza = 0
    do i=1,maxza
      if(index(el,atomlib(i)) /= 0)then
-       zchar = dble(i)
+       iza = i
        exit
      end if
    end do
@@ -6768,7 +6811,7 @@ Subroutine SuppInf
    '     a MOLDEN file)',/,                                                            &
    ' 15) NBO6 (> May.2014, insert [PROGRAM] NBO6 into MOLDEN file)',/,                 &
    ' 16) NWChem (>= 6.8) by MOLDEN_NORM JANPA or NONE',/,                              &
-   ' 17) ORCA (insert [PROGRAM] ORCA into MOLDEN file)',/,                             &
+   ' 17) ORCA (optional, insert [PROGRAM] ORCA into MOLDEN file)',/,                   &
    ' 18) Priroda (thanks to Dr. Evgeniy Pankratyev for testing)',/,                    &
    ' 19) PSI4 (spherical functions only; insert [PROGRAM] PSI4 into MOLDEN file)',/,   &
    ' 20) PySCF',/,                                                                     &
