@@ -4,6 +4,11 @@
 Molden2AIM is a utility program which can be used to create AIM-WFN, AIM-WFX, and NBO-47 files from a Molden file.
 
 ## Recent Changes
+Version 5.0.4 (02/07/2021).
+
+1. Bug fix. The `[CORE]`/`[PSEUDO]` data block was omitted by mistake in subroutine ROADrv.
+2. Bug fix. In the new MOLDEN file, ZA instead of ZA-Ncore is printed now in the `[ATOMS]` data block.
+
 Version 5.0.3 (01/30/2021).
 
 1. Improved compatibility with GNU gfortran 10.

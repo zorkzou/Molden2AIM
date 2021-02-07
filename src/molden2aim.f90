@@ -37,8 +37,8 @@ program Molden2AIM
 !=================================================================================================================================
 !  head
 !=================================================================================================================================
- ver = "5.0.3"
- dt  = "01/30/2021"
+ ver = "5.0.4"
+ dt  = "02/07/2021"
  call headprt(ver,dt)
 
 !=================================================================================================================================
@@ -2897,7 +2897,8 @@ Subroutine genmdn(fmdn,inmd,isym,ver,dt,nat,MaxL,lecp,iza,icore,xyz, nshell,mapa
  write(inmd,"('[Atoms] AU')")
  do i=1,nat
    call ElemZA(1,tmp,iza(i))
-   write(inmd,"(2x,a3,2i5,3f20.10)") tmp(1:3), i, iza(i)-icore(i), xyz(:,i)
+   !write(inmd,"(2x,a3,2i5,3f20.10)") tmp(1:3), i, iza(i)-icore(i), xyz(:,i)
+   write(inmd,"(2x,a3,2i5,3f20.10)") tmp(1:3), i, iza(i), xyz(:,i)
  end do
 
  ! #core
@@ -2905,7 +2906,7 @@ Subroutine genmdn(fmdn,inmd,isym,ver,dt,nat,MaxL,lecp,iza,icore,xyz, nshell,mapa
    write(inmd,"('[PSEUDO]')")
    do i=1,nat
      call ElemZA(1,tmp,iza(i))
-     write(inmd,"(a3,1x,2i6)") tmp(1:3), i, iza(i)-icore(i)
+     write(inmd,"(2x,a3,2i5)") tmp(1:3), i, iza(i)-icore(i)
    end do
  end if
 
@@ -5728,6 +5729,7 @@ Subroutine ROADrv(imod1,imod2,igto,iprog,ctmp,ierr)
 
  ! save new MOLDEN file
  write(imod2,"('[Molden Format]')")
+ ! since iprog has been known, the [Program] block is not needed
  if(iprog == 2) write(imod2,"('[Program] CFour')")
 
  call searchar(imod1,7,"[ATOMS]",ctmp,ierr)
@@ -5752,6 +5754,23 @@ Subroutine ROADrv(imod1,imod2,igto,iprog,ctmp,ierr)
  else if(imode == 1)then
    call RdAtm(imod1,imod2,NAtm,ctmp,ierr)
     if(ierr == 1) return
+ end if
+
+ ! [CORE] or [PSEUDO]
+ ! symmetric equivalent atoms are not affected by the reordering
+ call searchar2(imod1,6,"[CORE]",8,"[PSEUDO]",ctmp,ierr)
+ if(ierr /= 0) then
+   if(ierr == 1) then
+     write(imod2,"('[CORE]')")
+   else
+     write(imod2,"('[PSEUDO]')")
+   end if
+   ierr = 0
+   do while(.true.)
+     read(imod1,"(100a)") ctmp
+     if(len_trim(ctmp) == 0 .or. (index(ctmp,'[') > 0 .and. index(ctmp,']') > 0) ) exit
+     write(imod2,"(a)") ctmp
+   end do
  end if
 
  write(imod2,"('[GTO]')")
@@ -5978,6 +5997,32 @@ Subroutine ROADrv(imod1,imod2,igto,iprog,ctmp,ierr)
   ierr = 1
   return
  end subroutine searchar
+
+ ! search optional LOGO1 or LOGO2
+ subroutine searchar2(imod1,lenth1,LOGO1,lenth2,LOGO2,ctmp,ifind)
+  implicit none
+  integer(kind=4) :: imod1, lenth1, lenth2, ifind
+  character*(*) :: LOGO1, LOGO2
+  character*100 :: ctmp
+
+  rewind(imod1)
+
+  ifind = 0
+  do while(.true.)
+    read(imod1,"(100a)",err=100,end=100)ctmp
+    call charl2u(ctmp)
+    if(index(ctmp,LOGO1(1:lenth1))/=0 .or. index(ctmp,LOGO2(1:lenth2))/=0) then
+      ifind = 1
+      if(index(ctmp,LOGO2(1:lenth2))/=0) ifind = 2
+      exit
+    end if
+  end do
+
+  return
+
+  100 continue
+  return
+ end subroutine searchar2
 
 end
 
