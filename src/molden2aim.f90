@@ -27,18 +27,15 @@ program Molden2AIM
  dimension         :: ICntrl(8)
  logical           :: doit,ifopen,ifwbo
 
- character*157     :: fwfn,fwfx,fnbo
- character*164     :: fmdn
- character*10      :: dt
- character*5       :: ver
- character*1       :: yn,L2U
- character*120     :: stline
+ character         :: fnam*150, fwfn*157, fwfx*157, fnbo*157, fmdn*164
+ character         :: dt*10, ver*5
+ character         :: yn*1, L2U*1, stline*120
 
 !=================================================================================================================================
 !  head
 !=================================================================================================================================
- ver = "5.0.4"
- dt  = "02/07/2021"
+ ver = "5.0.5"
+ dt  = "06/03/2021"
  call headprt(ver,dt)
 
 !=================================================================================================================================
@@ -101,6 +98,7 @@ program Molden2AIM
  igto=71             ! basis functions
  iedf=73             ! EDF data for ECP
  isym=74             ! Symm for Molden
+ isys=75             ! System information
 
 !=================================================================================================================================
 ! The following integers will be determined later. Do not modify them here.
@@ -121,7 +119,7 @@ program Molden2AIM
 !  read user's parameters from m2a.ini
 !=================================================================================================================================
  call crtini(iini)
- call usrini(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp,ledt,lpspin,lspout,iunknw,tolocc,nbopro,stline)
+ call usrini(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp,ledt,lpspin,lspout,iunknw,ititle,tolocc,nbopro,stline)
 
 !=================================================================================================================================
 !  program list which can save MOLDEN file
@@ -146,7 +144,7 @@ program Molden2AIM
 !=================================================================================================================================
 !  define file names
 !=================================================================================================================================
- call filename(imod,fmdn,fwfn,fwfx,fnbo)
+ call filename(imod,fnam,fmdn,fwfn,fwfx,fnbo)
 
  open(imtm,file='mtm123456789.tmp')
  open(itmp,file='tmp123456789.tmp')
@@ -156,6 +154,7 @@ program Molden2AIM
  open(igto,file='gto123456789.tmp')
  open(iedf,file='edf123456789.tmp')
  open(isym,file='sym123456789.tmp')
+ if(ititle == 1) open(isys,file='sys123456789.tmp')
 
 !=================================================================================================================================
 !  check the molden file, and search the [PSEUDO] (lrdecp = 1) or [CORE] (lrdecp = 2) block
@@ -275,7 +274,7 @@ program Molden2AIM
  if(IAllMO > 0) then
    write(*,"(5x,'Number of MOs to be printed:',14x,i8)") nmoprt
  else
-   write(*,"(5x,'Number of MOs to be printed:',14x,i8,' (tol = ',d8.2,')')") nmoprt, tolocc
+   write(*,"(5x,'Number of MOs to be printed:',14x,i8,' (tol = ',d9.2,')')") nmoprt, tolocc
  end if
 
 !=================================================================================================================================
@@ -313,7 +312,12 @@ program Molden2AIM
  end if
 
 !=================================================================================================================================
-!  save a standard Molden file in Cartesian basis functions
+!  system information
+!=================================================================================================================================
+ if(ititle == 1) call sysinf(isys,isys,1,1,fnam)
+
+!=================================================================================================================================
+!  save a standard Molden file in spherical or Cartesian basis functions
 !=================================================================================================================================
  if(ICntrl(1) > 0)then
    doit = .true.
@@ -332,11 +336,11 @@ program Molden2AIM
 
  if(doit) then
    if(lspout == 1) then
-     call genmdn(fmdn,inmd,isym,ver,dt,nat,MaxL,lecp,iza,icore,xyz, nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  &
-       lspout,nmotot,nsph(2),lsymm,ispin,ene,occup,lprtmo,sphmo,stline)
+     call genmdn(fmdn,inmd,isym,isys,ver,dt,ititle,nat,MaxL,lecp,iza,icore,xyz, nshell,mapatm,lqnm,nshlls,nshlln,  &
+       expgto,congto,lspout,nmotot,nsph(2),lsymm,ispin,ene,occup,lprtmo,sphmo,stline)
    else
-     call genmdn(fmdn,inmd,isym,ver,dt,nat,MaxL,lecp,iza,icore,xyz, nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  &
-       lspout,nmotot,ncar(2),lsymm,ispin,ene,occup,lprtmo,carmo,stline)
+     call genmdn(fmdn,inmd,isym,isys,ver,dt,ititle,nat,MaxL,lecp,iza,icore,xyz, nshell,mapatm,lqnm,nshlls,nshlln,  &
+       expgto,congto,lspout,nmotot,ncar(2),lsymm,ispin,ene,occup,lprtmo,carmo,stline)
    end if
    write(*,8000)
  end if
@@ -360,8 +364,8 @@ program Molden2AIM
  end if
 
  if(doit) then
-   call genwfn(iwfn,fwfn,ver,dt,lpspin, nat,lecp,iza,icore,xyz,  MaxL,nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  &
-     ncar(1),ncar(2),nmotot,nmoprt,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  stline)
+   call genwfn(iwfn,fwfn,isys,ver,dt,ititle,lpspin, nat,lecp,iza,icore,xyz,  MaxL,nshell,mapatm,lqnm,nshlls,nshlln,  &
+     expgto,congto,ncar(1),ncar(2),nmotot,nmoprt,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  stline)
 
    ! Check the AIM-WFN file
    if(ICntrl(5) > 0)then
@@ -409,7 +413,7 @@ program Molden2AIM
  end if
 
  if(doit) then
-   call genwfx(iwfx,fwfx,ver,dt,  iedf,lecp,ledt,chanet,ntote,nat,iza,icore,xyz,  &
+   call genwfx(iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,ledt,chanet,ntote,nat,iza,icore,xyz,  &
      MaxL,nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  &
      ncar(1),ncar(2),nmotot,nmoprt,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  iunknw,stline)
 
@@ -484,8 +488,8 @@ program Molden2AIM
      OPEN(iwbo,FILE=(fnbo(1:lenth)//'_wbo.out'))
    end if
 
-   call DrvNBO(inbo,fnbo,ver,dt,nbopro,  nat,iza,icore,xyz,  MaxL,lspout,nshell,ngto,ncar(2),nsph(2),mapatm,lqnm,  &
-     nshlls,nshlln,expgto,congto,  nmotot,lalph,lbeta,ispin,ene,occup,carmo,sphmo,  iwbo,ifwbo,  ierr,stline)
+   call DrvNBO(inbo,fnbo,isys,ver,dt,ititle,nbopro,  nat,iza,icore,xyz,  MaxL,lspout,nshell,ngto,ncar(2),nsph(2),mapatm,  &
+     lqnm,nshlls,nshlln,expgto,congto,  nmotot,lalph,lbeta,ispin,ene,occup,carmo,sphmo,  iwbo,ifwbo,  ierr,stline)
    if(ierr /= 0) goto 9910
 
    ! Check the NBO .47 file
@@ -539,6 +543,7 @@ program Molden2AIM
    close(igto)
    close(iedf)
    close(isym)
+   if(ititle == 1) close(isys)
  else
    close(itmp,status='delete')
    close(igin,status='delete')
@@ -547,6 +552,7 @@ program Molden2AIM
    close(igto,status='delete')
    close(iedf,status='delete')
    close(isym,status='delete')
+   if(ititle == 1) close(isys,status='delete')
  end if
 
  call estop(0)
@@ -1158,7 +1164,7 @@ end
 ! generate an NBO-47 file.
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine DrvNBO(inbo,fnbo,ver,dt,nbopro,  nat,iza,icore,xyz,  MaxL,lsph,nshell,ngto,ncar,nsph,mapatm,lqnm,  &
+Subroutine DrvNBO(inbo,fnbo,isys,ver,dt,ititle,nbopro,  nat,iza,icore,xyz,  MaxL,lsph,nshell,ngto,ncar,nsph,mapatm,lqnm,  &
  nshlls,nshlln,expgto,congto,  nmotot,lalph,lbeta,ispin,ene,occup,carmo,sphmo,  iwbo,ifwbo,  ierr,ctmp) !
  implicit real(kind=8) (a-h,o-z)
  character*157     :: fnbo
@@ -1172,11 +1178,11 @@ Subroutine DrvNBO(inbo,fnbo,ver,dt,nbopro,  nat,iza,icore,xyz,  MaxL,lsph,nshell
  open(inbo,file=fnbo)
 
  if(lsph == 0) then
-   call nbomain(inbo,ver,dt,nbopro,lalph,lbeta,  nat,iza,icore,xyz,  MaxL,lsph,nshell,ngto,ncar,mapatm,lqnm,nshlls,nshlln,  &
-     expgto,congto,  nmotot,ispin,ene,occup,carmo,  iwbo,ifwbo,  ctmp,ierr)
+   call nbomain(inbo,isys,ver,dt,ititle,nbopro,lalph,lbeta,  nat,iza,icore,xyz,  MaxL,lsph,nshell,ngto,ncar,mapatm,lqnm,  &
+     nshlls,nshlln,expgto,congto,  nmotot,ispin,ene,occup,carmo,  iwbo,ifwbo,  ctmp,ierr)
  else
-   call nbomain(inbo,ver,dt,nbopro,lalph,lbeta,  nat,iza,icore,xyz,  MaxL,lsph,nshell,ngto,nsph,mapatm,lqnm,nshlls,nshlln,  &
-     expgto,congto,  nmotot,ispin,ene,occup,sphmo,  iwbo,ifwbo,  ctmp,ierr)
+   call nbomain(inbo,isys,ver,dt,ititle,nbopro,lalph,lbeta,  nat,iza,icore,xyz,  MaxL,lsph,nshell,ngto,nsph,mapatm,lqnm,  &
+     nshlls,nshlln,expgto,congto,  nmotot,ispin,ene,occup,sphmo,  iwbo,ifwbo,  ctmp,ierr)
  end if
  if(ierr /= 0) return
 
@@ -1211,8 +1217,8 @@ Subroutine DrvNBO(inbo,fnbo,ver,dt,nbopro,  nat,iza,icore,xyz,  MaxL,lsph,nshell
  ! 2) T and V: optional but not calculated here. They are not defined in the case of all-electron scalar relativistic calculation.
  !
  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
- subroutine nbomain(inbo,ver,dt,nbopro,lalph,lbeta,  natm,iza,icore,xyz,  MaxL,lsph,nshell,nexp,nbas,mapatm,lqnm,nshlls,  &
-  nshlln,expgto,congto,  nmo,ispin,ene,occup,cmo,  iwbo,ifwbo,  ctmp,ierr)
+ subroutine nbomain(inbo,isys,ver,dt,ititle,nbopro,lalph,lbeta,  natm,iza,icore,xyz,  MaxL,lsph,nshell,nexp,nbas,mapatm,  &
+  lqnm,nshlls,nshlln,expgto,congto,  nmo,ispin,ene,occup,cmo,  iwbo,ifwbo,  ctmp,ierr)
   implicit real(kind=8) (a-h,o-z)
   parameter(au2ang=0.529177249d0)
   logical           :: ifwbo, iffock, ifprmo
@@ -1261,7 +1267,11 @@ Subroutine DrvNBO(inbo,fnbo,ver,dt,nbopro,  nat,iza,icore,xyz,  MaxL,lsph,nshell
 
   ! $COORD
   write(inbo,"(' $COORD')")
-  call writitle(inbo,ver,dt,ctmp)
+  if(ititle == 1) then
+    call sysinf(isys,inbo,2,1,ctmp)
+  else
+    call writitle(inbo,ver,dt,ctmp)
+  end if
   ! About NBO6:
   ! 1. It may lead to numerical errors of about 1.0d-6 in the overlap matrix, which cannot pass the examination of NBO6. More
   !    digits should be printed.
@@ -2160,7 +2170,7 @@ end
 ! generate a wfx file.
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine genwfx(iwfx,fwfx,ver,dt,  iedf,lecp,iedftyp,chanet,ntote,nat,iza,icore,xyz,  &
+Subroutine genwfx(iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,iedftyp,chanet,ntote,nat,iza,icore,xyz,  &
  MaxL,nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  &
  ncarp,ncarc,nmotot,nmo,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  iunknw,ctmp)
  implicit real(kind=8) (a-h,o-z)
@@ -2175,7 +2185,7 @@ Subroutine genwfx(iwfx,fwfx,ver,dt,  iedf,lecp,iedftyp,chanet,ntote,nat,iza,icor
 
  open(iwfx,file=fwfx)
 
- call wfxmain(iwfx,ver,dt,  nat,chanet,ntote,iedf,lecp,nedf,iza,icore,xyz,  &
+ call wfxmain(iwfx,isys,ver,dt,ititle,  nat,chanet,ntote,iedf,lecp,nedf,iza,icore,xyz,  &
    nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  &
    ncarp,ncarc,nmotot,nmo,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  iunknw,ctmp)
 
@@ -2225,7 +2235,7 @@ Subroutine genwfx(iwfx,fwfx,ver,dt,  iedf,lecp,iedftyp,chanet,ntote,nat,iza,icor
  !        >>>>>>>>>>>>>>>>>>>>>>>>>> Not considered at present!
  !
  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
- subroutine wfxmain(iwfx,ver,dt,  nat,chanet,ntote,iedf,lecp,nedf,iza,icore,xyz,  &
+ subroutine wfxmain(iwfx,isys,ver,dt,ititle,  nat,chanet,ntote,iedf,lecp,nedf,iza,icore,xyz,  &
    nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  &
    ncarp,ncarc,nmotot,nmo,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  iunknw,ctmp)
   parameter(enemax=9999.d0)
@@ -2242,7 +2252,11 @@ Subroutine genwfx(iwfx,fwfx,ver,dt,  iedf,lecp,iedftyp,chanet,ntote,nat,iza,icor
 
   ! Title
   call wfxlab(iwfx,0,"Title")
-  call writitle(iwfx,ver,dt,ctmp)
+  if(ititle == 1) then
+    call sysinf(isys,iwfx,2,2,ctmp)
+  else
+    call writitle(iwfx,ver,dt,ctmp)
+  end if
   call wfxlab(iwfx,1,"Title")
 
   ! Keywords
@@ -2626,8 +2640,8 @@ end
 ! generate a wfn file.
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine genwfn(iwfn,fwfn,ver,dt,lpspin,  nat,lecp,iza,icore,xyz,  MaxL,nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  &
- ncarp,ncarc,nmotot,nmo,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  tmp)
+Subroutine genwfn(iwfn,fwfn,isys,ver,dt,ititle,lpspin,  nat,lecp,iza,icore,xyz,  MaxL,nshell,mapatm,lqnm,nshlls,nshlln,  &
+ expgto,congto,ncarp,ncarc,nmotot,nmo,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  tmp)
  implicit real(kind=8) (a-h,o-z)
  character*5       :: ver
  character*10      :: dt
@@ -2641,7 +2655,11 @@ Subroutine genwfn(iwfn,fwfn,ver,dt,lpspin,  nat,lecp,iza,icore,xyz,  MaxL,nshell
  rewind(iwfn)
 
  ! title
- call writitle(iwfn,ver,dt,tmp)
+ if(ititle == 1) then
+   call sysinf(isys,iwfn,2,1,tmp)
+ else
+   call writitle(iwfn,ver,dt,tmp)
+ end if
 
  write(iwfn,"('GAUSSIAN',8x,i7,' MOL ORBITALS',i7,' PRIMITIVES',i9,' NUCLEI')")nmo, ncarp, nat
 
@@ -2869,11 +2887,11 @@ end
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
-! generate a standard Molden file with Cartrsian basis functions.
+! generate a standard Molden file with spherical or Cartrsian basis functions.
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine genmdn(fmdn,inmd,isym,ver,dt,nat,MaxL,lecp,iza,icore,xyz, nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  &
- lspout,nmotot,ngc,lsymm,ispin,ene,occup,lprtmo,carmo,tmp)
+Subroutine genmdn(fmdn,inmd,isym,isys,ver,dt,ititle,nat,MaxL,lecp,iza,icore,xyz, nshell,mapatm,lqnm,nshlls,nshlln,  &
+ expgto,congto,lspout,nmotot,ngc,lsymm,ispin,ene,occup,lprtmo,carmo,tmp)
  implicit real(kind=8) (a-h,o-z)
  character*5       :: ver
  character*10      :: dt
@@ -2890,7 +2908,11 @@ Subroutine genmdn(fmdn,inmd,isym,ver,dt,nat,MaxL,lecp,iza,icore,xyz, nshell,mapa
  ! title
  write(inmd,"('[Molden Format]')")
  write(inmd,"('[Title]')")
- call writitle(inmd,ver,dt,tmp)
+ if(ititle == 1) then
+   call sysinf(isys,inmd,2,2,tmp)
+ else
+   call writitle(inmd,ver,dt,tmp)
+ end if
  write(inmd,*)
 
  ! coordinates
@@ -6640,8 +6662,9 @@ end
 ! define file names
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine filename(imod,fmdn,fwfn,fwfx,fnbo)
+Subroutine filename(imod,fnam,fmdn,fwfn,fwfx,fnbo)
  implicit real(kind=8) (a-h,o-z)
+ character*150     :: fnam
  character*157     :: fwfn,fwfx,fnbo,fmod(2)
  character*164     :: fmdn
  character*7       :: exten(8)
@@ -6650,7 +6673,7 @@ Subroutine filename(imod,fmdn,fwfn,fwfx,fnbo)
  write(*,"(/)")
  100  write(*,"(' Type in the MOLDEN/GABEDIT file name within 150 characters:',/,  &
         ' (extension mol/mold/molden/gab can be omitted; default: MOLDEN)',/,' > ',$)")
- read(*,"(a50)")fmod(1)(:)
+ read(*,"(a150)")fmod(1)(:)
  lstr=nonspace(fmod(1)(:))
  lend=LEN_TRIM(fmod(1)(:))
  if(lend == 0)then                 ! use default file name
@@ -6678,6 +6701,7 @@ Subroutine filename(imod,fmdn,fwfn,fwfx,fnbo)
  goto 100
 
  300  write(*,"(/,' The MOLDEN/GABEDIT file ',a,' has been found.',/,1x,77('_'),/)") trim(fmod(iinp))
+ fnam = trim(fmod(iinp))
 ! define the *.wfn/wfx/47 file name
  lend2=index(fmod(iinp),'.',.true.)
  if(lend2 > 1) lend = lend2-1
@@ -6694,14 +6718,14 @@ end
 ! Read user's initialization parameters from m2a.ini
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine usrini(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp,ledt,lpspin,lspout,iunknw,tolocc,nbopro,ctmp)
+Subroutine usrini(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp,ledt,lpspin,lspout,iunknw,ititle,tolocc,nbopro,ctmp)
  implicit real(kind=8) (a-h,o-z)
- parameter(nkey=18)
+ parameter(nkey=19)
  Dimension         :: ICntrl(8)
  character*100     :: ctmp
  character*9       :: keyword(nkey)
  data keyword/"MOLDEN=","WFN=","WFX=","NBO=","WFNCHECK=","WFXCHECK=","NBOCHECK=","WBO=","PROGRAM=","CLEAR=","ALLMO=",  &
-   "NOSUPP=","RDCORE=","EDFTYP=","PRSPIN=","CARSPH=","NBOPRO=","UNKNOWN="/
+   "NOSUPP=","RDCORE=","EDFTYP=","PRSPIN=","CARSPH=","NBOPRO=","UNKNOWN=","TITLE="/
 
  open(iini,file='m2a.ini',status='old',err=9000)
  write(*,"(/,' m2a.ini has been loaded.')")
@@ -6769,6 +6793,9 @@ Subroutine usrini(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp,ledt,lpspin,lspout,
      case(18)
        iunknw = 0
        if(keyvalue /= 0) iunknw = 1
+     case(19)
+       ititle = 0
+       if(keyvalue == 1) ititle = 1
    end select
  end do
  close(iini)
@@ -6962,6 +6989,11 @@ Subroutine crtini(iini)
  write(iini,"('#  Close supporting information or not')")
  write(iini,"('# <0: print; =0: asks the user; >0: do not print')")
  write(iini,"('nosupp=1')")
+ write(iini,*)
+ write(iini,"('########################################################################')")
+ write(iini,"('#  The title to be printed in the new-MOLDEN/WFN/WFX/47 files')")
+ write(iini,"('# =0: default; =1: hostname & path')")
+ write(iini,"('title=0')")
  write(iini,*)
  write(iini,"('########################################################################')")
  write(iini,"('#  The following parameters are used only for debugging.')")
@@ -7162,6 +7194,84 @@ Subroutine trulen(cha,len1,len2,length)
 
  return
 end
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+! read (mode1 = 2) / generate (mode1 = 1) hostname and full path.
+! for mode1 = 2 and mode2 = 1, print hostname and full path in the same line.
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+subroutine sysinf(isys,iout,mode1,mode2,fname)
+ implicit real(kind=8) (a-h,o-z)
+ character :: fname*(*)
+ logical   :: ifdos
+ character :: bslash*1
+ character*150,allocatable :: hstnam(:), prefix(:)
+ character*160,allocatable :: fulnam(:)
+
+ rewind(isys)
+
+ if(mode1 == 1) then
+
+   ! Backslash '\' cannot be recognized by the pgf90 compiler
+   bslash = achar(92)
+
+   allocate(fulnam(1), prefix(1))
+
+   ! hostname
+   prefix = "NA"
+!<<< Comment out this part if hostnm is not supported by your Fortran compiler.
+   call hostnm( prefix(1) )
+!>>>
+   write(isys,"(a)") trim( prefix(1) )
+
+   ! full path & MOLDEN file name
+   fulnam(1) = fname
+!<<< Comment out this part if getcwd or getenv is not well supported by your Fortran compiler.
+   call getcwd( prefix(1) )
+   ifdos = (prefix(1)(2:3) == ':' // bslash )
+
+   if(ifdos) then
+      !write(*,"(/,'DOS/Windows',/)")
+     if (fname(2:3) == ':' // bslash) then
+       ! fulnam(1) = fname
+     else
+       ! call getcwd( prefix(1) )
+       fulnam(1) = prefix(1)(1:len_trim(prefix(1))) // bslash // fname(1:len_trim(fname))
+     endif
+   else
+      !write(*,"(/,'UNIX/Linux',/)")
+     if ( fname(1:1) == '/' ) then
+       ! fulnam(1) = fname
+     else if ( fname(1:2) == '~/' ) then
+       call getenv( 'HOME', prefix(1) )
+       fulnam(1) = prefix(1)(1:len_trim(prefix(1))) // fname(2:len_trim(fname))
+     else
+       ! call getcwd( prefix(1) )
+       fulnam(1) = prefix(1)(1:len_trim(prefix(1))) // '/' // fname(1:len_trim(fname))
+     endif
+   end if
+!>>>
+   write(isys,"(a)") trim(fulnam(1))
+
+   deallocate(fulnam, prefix)
+
+ else
+
+   allocate(fulnam(1), hstnam(1))
+
+   read(isys,"(a150,/,a160)") hstnam(1), fulnam(1)
+
+   if(mode2 == 1) then
+     write(iout,"(a,', ',a)") trim(hstnam(1)),trim(fulnam(1))
+   else
+     write(iout,"(a,/,a)") trim(hstnam(1)),trim(fulnam(1))
+   end if
+
+   deallocate(fulnam, hstnam)
+
+ end if
+
+ return
+end subroutine sysinf
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
