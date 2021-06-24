@@ -35,7 +35,7 @@ program Molden2AIM
 !  head
 !=================================================================================================================================
  ver = "5.0.5"
- dt  = "06/09/2021"
+ dt  = "06/25/2021"
  call headprt(ver,dt)
 
 !=================================================================================================================================
@@ -4015,13 +4015,13 @@ end
       write(*,"(5x,'Net charge of the anionic system:',14x,f8.4)") chanet
     end if
   else if(docc < 1.0d-2)then
-    write(*,"(/,' Warning! Strange occupation: ',f10.4)")sumocc
+    write(*,"(/,' Warning! Strange occupation number: ',f10.4)")sumocc
     write(*,"(/,' Please check your AIM results carefully.')")
     call xcontinue
   else
-    write(*,"(/,' Error! Strange occupation: ',f10.4)")sumocc
+    write(*,"(/,' Error! Strange occupation number: ',f10.4)")sumocc
     ierr=1
-    call xcontinue
+    !call xcontinue
   end if
 
   return
@@ -5838,7 +5838,14 @@ Subroutine ROADrv(imod1,imod2,igto,iprog,ctmp,ierr)
  do while(.true.)
    read(imod1,"(100a)",err=100,end=100)ctmp
    if(index(ctmp,'[') /= 0 .and. index(ctmp,']') /= 0) exit
-   write(imod2,"(a)")trim(ctmp)
+   ! STOBE may print MO coefficients like this
+   ! 131-126.59660
+   im = index(ctmp,'-')
+   if(im > 1) then
+     write(imod2,"(a,1x,a)")ctmp(1:im-1),trim(ctmp(im:))
+   else
+     write(imod2,"(a)")trim(ctmp)
+   end if
  end do
 
  100 return
