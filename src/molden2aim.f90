@@ -35,7 +35,7 @@ program Molden2AIM
 !  head
 !=================================================================================================================================
  ver = "5.0.5"
- dt  = "06/25/2021"
+ dt  = "07/03/2021"
  call headprt(ver,dt)
 
 !=================================================================================================================================
@@ -4662,7 +4662,7 @@ Subroutine ChkMolden(imod,lrdecp,tmp1,ierr)
  end do
 
  if(.NOT. start) then
-   write(*,"(' *** Error! This is not a standard MOLDEN / GABEDIT file!')")
+   write(*,"(' *** Error! No [MOLDEN FORMAT] or [GABEDIT FORMAT] found!')")
    ierr = 1
    goto 9999
  end if
@@ -6791,7 +6791,11 @@ Subroutine usrini(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp,ledt,lpspin,lspout,
        IAllMO=keyvalue
      case(12)
        nosupp = 0
-       if(keyvalue /= 0) nosupp = 1
+       if(keyvalue > 0) then
+         nosupp = 1
+       else if(keyvalue < 0) then
+         nosupp =-1
+       end if
      case(13)
        ! do nothing
        !lrdecp = 0
@@ -6881,7 +6885,7 @@ end
 Subroutine SuppInf
  implicit real(kind=8) (a-h,o-z)
 
- write(*,"(' Supported programs:',/,                                                   &
+ write(*,"(/,' Supported programs:',/,                                                 &
    '  1) ACES-II 2.9 (fix reorder.F, and insert [PROGRAM] ACES2 into MOLDEN file)',/,  &
    '  2) BDF-G (thanks to Dr. Bingbing Suo for testing)',/,                            &
    '  3) CADPAC',/,                                                                    &
@@ -6892,28 +6896,33 @@ Subroutine SuppInf
    '  7) Dalton (> 2013; HF/DFT/MP2/MCSCF with spherical functions)',/,                &
    '  8) deMon2k',/,                                                                   &
    '  9) Gabedit (the GAB file is compatible)',/,                                      &
-   ' 10) MOLCAS (for Cart. functions, insert [PROGRAM] MOLCAS into MOLDEN file)',/,    &
-   ' 11) Molden (the Molden program can read MOs from the output file of some',/,      &
+   ' 10) Jaguar (SPDF functions, insert [Molden Format] into MOLDEN file)',/,          &
+   ' 11) MOLCAS (for Cart. functions, insert [PROGRAM] MOLCAS into MOLDEN file)',/,    &
+   ' 12) Molden (the Molden program can read MOs from the output file of some',/,      &
    '     QC programs, and save a MOLDEN file)',/,                                      &
-   ' 12) MOLPRO',/,                                                                    &
-   ' 13) MRCC (for Cart. functions, insert [PROGRAM] MRCC into MOLDEN file)',/,        &
-   ' 14) MultiWFN (it can read the fchk file of Gaussian and Q-Chem, and save',/,      &
+   ' 13) MOLPRO',/,                                                                    &
+   ' 14) MRCC (for Cart. functions, insert [PROGRAM] MRCC into MOLDEN file)',/,        &
+   ' 15) MultiWFN (it can read the fchk file of Gaussian and Q-Chem, and save',/,      &
    '     a MOLDEN file)',/,                                                            &
-   ' 15) NBO6 (> May.2014, insert [PROGRAM] NBO6 into MOLDEN file)',/,                 &
-   ' 16) NWChem (>= 6.8) by MOLDEN_NORM JANPA or NONE',/,                              &
-   ' 17) ORCA (optional, insert [PROGRAM] ORCA into MOLDEN file)',/,                   &
-   ' 18) Priroda (thanks to Dr. Evgeniy Pankratyev for testing)',/,                    &
-   ' 19) PSI4 (spherical functions only; insert [PROGRAM] PSI4 into MOLDEN file)',/,   &
-   ' 20) PySCF',/,                                                                     &
-   ' 21) Q-Chem (spherical SPDF or Cartesian SPD basis functions)',/,                  &
-   ' 22) StoBe',/,                                                                     &
-   ' 23) TeraChem (SPDF basis functions)',/,                                           &
-   ' 24) Turbomole (insert [PROGRAM] TURBOMOLE into MOLDEN file)'                      &
+   ' 16) NBO6 (> May.2014, insert [PROGRAM] NBO6 into MOLDEN file)',/,                 &
+   ' 17) NWChem (>= 6.8) by MOLDEN_NORM JANPA or NONE',/,                              &
+   ' 18) ORCA (optional, insert [PROGRAM] ORCA into MOLDEN file)',/,                   &
+   ' 19) Priroda (thanks to Dr. Evgeniy Pankratyev for testing)',/,                    &
+   ' 20) PSI4 (spherical functions only; insert [PROGRAM] PSI4 into MOLDEN file)',/,   &
+   ' 21) PySCF',/,                                                                     &
+   ' 22) Q-Chem (spherical SPDF or Cartesian SPD functions)',/,                        &
+   ' 23) StoBe',/,                                                                     &
+   ' 24) TeraChem (SPDF functions)',/,                                                 &
+   ' 25) Turbomole (insert [PROGRAM] TURBOMOLE into MOLDEN file)'                      &
    )")
 
- write(*,"(/,' Programs to be tested:      1) Bagel      2) NRLMOL     3) SeqQuest')")
+ write(*,"(/,' Programs to be tested:',/,                                              &
+   '  1) Bagel      2) CP2k       3) NRLMOL     4) SeqQuest'                           &
+   )")
 
- write(*,"(/,' Unsupported programs:       1) ADF        2) Jaguar')")
+ write(*,"(/,' Unsupported programs:',/,                                               &
+   '  1) ADF'                                                                          &
+   )")
 
  call xcontinue
 
