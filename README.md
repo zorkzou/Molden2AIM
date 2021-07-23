@@ -9,6 +9,7 @@ Version 5.0.5 (07/03/2021).
 1. In the title section of new-MOLDEN/WFN/WFX/47 files, print the hostname and the original MOLDEN file name with the full path by setting title=1 in m2a.ini.
 2. Bug fix. A space between index and coefficient in the `[MO]` data block may be missing in some MOLDEN files, which is completed.
 3. Bug fix. Negative `nosupp` in `m2a.ini` was omitted by mistake.
+4. A command line parameter `-i` has been added.
 
 Version 5.0.4 (02/07/2021).
 
@@ -85,7 +86,9 @@ where `F90` can be `gfortran`, `pgf90`, `ifort`, or other Fortran90 compilers.
 
     > ./molden2aim.exe
 
-   and then type in the MOLDEN/Gabedit file name.
+   and then type in the MOLDEN/Gabedit file name, or provide the MOLDEN/Gabedit file name in command line
+
+    > ./molden2aim.exe -i MOLDEN_FILE_NAME
 
 ## ECP/MCP
 

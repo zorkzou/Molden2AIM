@@ -25,17 +25,22 @@ program Molden2AIM
  dimension         :: ncar(2),nsph(2)
 
  dimension         :: ICntrl(8)
- logical           :: doit,ifopen,ifwbo
+ logical           :: doit,ifopen,ifcomm,ifwbo
 
- character         :: fnam*150, fwfn*157, fwfx*157, fnbo*157, fmdn*164
+ character         :: fnam*150, fwfn*157, fwfx*157, fnbo*157, fmdn*164, ctmp*314
  character         :: dt*10, ver*5
  character         :: yn*1, L2U*1, stline*120
+
+!=================================================================================================================================
+!  command mode or not
+!=================================================================================================================================
+ call commandline(ifcomm,fnam,ctmp)
 
 !=================================================================================================================================
 !  head
 !=================================================================================================================================
  ver = "5.0.5"
- dt  = "07/03/2021"
+ dt  = "07/23/2021"
  call headprt(ver,dt)
 
 !=================================================================================================================================
@@ -136,7 +141,7 @@ program Molden2AIM
    doit = .true.
  end if
  if(doit) then
-   call SuppInf
+   call SuppInf(ifcomm)
  else
    write(*,8000)
  end if
@@ -144,7 +149,7 @@ program Molden2AIM
 !=================================================================================================================================
 !  define file names
 !=================================================================================================================================
- call filename(imod,fnam,fmdn,fwfn,fwfx,fnbo)
+ call filename(ifcomm,imod,fnam,fmdn,fwfn,fwfx,fnbo,ctmp)
 
  open(imtm,file='mtm123456789.tmp')
  open(itmp,file='tmp123456789.tmp')
@@ -281,7 +286,7 @@ program Molden2AIM
 !  read core data
 !=================================================================================================================================
  chanet = 0.d0
- call RdCore(imtm,iprog,chanet,ntote,nchar,sumocc,lrdecp,nat,lbeta,lfc4,lecp,iza,icore,stline,yn,ierr)
+ call RdCore(ifcomm,imtm,iprog,chanet,ntote,nchar,sumocc,lrdecp,nat,lbeta,lfc4,lecp,iza,icore,stline,yn,ierr)
    if(ierr == 1) goto 9910
  ! check occup
  call ChkOcc(lbeta,lfc4,sumocc,nmotot,occup,ierr)
@@ -413,7 +418,7 @@ program Molden2AIM
  end if
 
  if(doit) then
-   call genwfx(iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,ledt,chanet,ntote,nat,iza,icore,xyz,  &
+   call genwfx(ifcomm,iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,ledt,chanet,ntote,nat,iza,icore,xyz,  &
      MaxL,nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  &
      ncar(1),ncar(2),nmotot,nmoprt,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  iunknw,stline)
 
@@ -555,7 +560,7 @@ program Molden2AIM
    if(ititle == 1) close(isys,status='delete')
  end if
 
- call estop(0)
+ if(.not. ifcomm) call estop(0)
 
  8000  format(1x,77('='))
 end
@@ -2170,10 +2175,11 @@ end
 ! generate a wfx file.
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine genwfx(iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,iedftyp,chanet,ntote,nat,iza,icore,xyz,  &
+Subroutine genwfx(ifcomm,iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,iedftyp,chanet,ntote,nat,iza,icore,xyz,  &
  MaxL,nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  &
  ncarp,ncarc,nmotot,nmo,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  iunknw,ctmp)
  implicit real(kind=8) (a-h,o-z)
+ logical           :: ifcomm
  character*157     :: fwfx
  character*5       :: ver
  character*10      :: dt
@@ -2185,7 +2191,7 @@ Subroutine genwfx(iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,iedftyp,chanet,ntote,
 
  open(iwfx,file=fwfx)
 
- call wfxmain(iwfx,isys,ver,dt,ititle,  nat,chanet,ntote,iedf,lecp,nedf,iza,icore,xyz,  &
+ call wfxmain(ifcomm,iwfx,isys,ver,dt,ititle,  nat,chanet,ntote,iedf,lecp,nedf,iza,icore,xyz,  &
    nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  &
    ncarp,ncarc,nmotot,nmo,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  iunknw,ctmp)
 
@@ -2235,11 +2241,12 @@ Subroutine genwfx(iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,iedftyp,chanet,ntote,
  !        >>>>>>>>>>>>>>>>>>>>>>>>>> Not considered at present!
  !
  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
- subroutine wfxmain(iwfx,isys,ver,dt,ititle,  nat,chanet,ntote,iedf,lecp,nedf,iza,icore,xyz,  &
+ subroutine wfxmain(ifcomm,iwfx,isys,ver,dt,ititle,  nat,chanet,ntote,iedf,lecp,nedf,iza,icore,xyz,  &
    nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  &
    ncarp,ncarc,nmotot,nmo,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  iunknw,ctmp)
   parameter(enemax=9999.d0)
   implicit real(kind=8) (a-h,o-z)
+  logical           :: ifcomm
   character*10      :: dt
   character*5       :: ver
   character*100     :: ctmp
@@ -2313,34 +2320,40 @@ Subroutine genwfx(iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,iedftyp,chanet,ntote,
     neleb = nint(eleb)
     MS = nelea - neleb + 1
   else
-    ! Read in Spin Multiplicity, Numbers of Alpha and Beta electrons
-    do while(.true.)
-      write(*,"(/,'  Type in the Spin Multiplicity:',/,  &
-        '  (default: 1 for even- and 2 for odd-number of electron system)',/,' > ',$)")
-      read(*,"(a10)",err=50) ctmp
-      if(len_trim(ctmp(1:10)) == 0) then
-        MS = 1
-        if(mod(ntote,2) == 1) MS = 2
-      else
-        read(ctmp(1:10),*,err=50) MS
-      end if
+    if(ifcomm) then
+      ! Singlet or doublet state by default
+      MS = 1
+      if(mod(ntote,2) == 1) MS = 2
+    else
+      ! Read in Spin Multiplicity, Numbers of Alpha and Beta electrons
+      do while(.true.)
+        write(*,"(/,'  Type in the Spin Multiplicity:',/,  &
+          '  (default: 1 for even- and 2 for odd-number of electron system)',/,' > ',$)")
+        read(*,"(a10)",err=50) ctmp
+        if(len_trim(ctmp(1:10)) == 0) then
+          MS = 1
+          if(mod(ntote,2) == 1) MS = 2
+        else
+          read(ctmp(1:10),*,err=50) MS
+        end if
 
-      if(MS < 1 .or. MS > ntote+1) then
-        write(*,"(/,'   MS is out of range! Try again.')")
-        cycle
-      else if(mod(ntote,2) == 0 .and. mod(MS,2) == 0) then
-        write(*,"(/,'   MS must be an odd number! Try again.')")
-        cycle
-      else if(mod(ntote,2) == 1 .and. mod(MS,2) == 1) then
-        write(*,"(/,'   MS must be an even number! Try again.')")
-        cycle
-      else
-        exit
-      end if
+        if(MS < 1 .or. MS > ntote+1) then
+          write(*,"(/,'   MS is out of range! Try again.')")
+          cycle
+        else if(mod(ntote,2) == 0 .and. mod(MS,2) == 0) then
+          write(*,"(/,'   MS must be an odd number! Try again.')")
+          cycle
+        else if(mod(ntote,2) == 1 .and. mod(MS,2) == 1) then
+          write(*,"(/,'   MS must be an even number! Try again.')")
+          cycle
+        else
+          exit
+        end if
 
-      50  write(*,"(/,'   Error when reading MS! Try again.')")
-      cycle
-    end do
+        50  write(*,"(/,'   Error when reading MS! Try again.')")
+        cycle
+      end do
+    end if
     neleb = (ntote + 1 - MS) / 2
     nelea = ntote - neleb
   end if
@@ -3949,8 +3962,9 @@ end
 ! read core data
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
- subroutine RdCore(imtm,iprog,chanet,ntote,nchar,sumocc,lrdecp,natm,ifbeta,lfc4,lecp,iza,icore,ctmp,yn,ierr)
+ subroutine RdCore(ifcomm,imtm,iprog,chanet,ntote,nchar,sumocc,lrdecp,natm,ifbeta,lfc4,lecp,iza,icore,ctmp,yn,ierr)
  implicit real(kind=8) (a-h,o-z)
+ logical           :: ifcomm
  dimension         :: iza(natm), icore(natm)
  character*100     :: ctmp
  character*1       :: yn, L2U
@@ -3963,8 +3977,12 @@ end
    write(*,"(//,' The [CORE] data block has been found in the Molden file.')")
  ! else if(abs(dble(nchar)-sumocc) > 0.001d0)then
  else if(abs(dble(nchar)-sumocc) > 1.001d0 .and. (dble(nchar)-sumocc) > -8.001d0)then
-   write(*,"(//,' Is ECP or MCP used? ([Yes] / No)',/,' > ',$)")
-   read(*,"(a1)")yn
+   if(.not. ifcomm) then
+     write(*,"(//,' Is ECP or MCP used? ([Yes] / No)',/,' > ',$)")
+     read(*,"(a1)")yn
+   else
+     yn = 'N'
+   end if
    yn=L2U(yn)
    lrdecp = 0
    if(yn /= 'N') then
@@ -3987,9 +4005,9 @@ end
  if(abs(chanet) > 0.001d0)then
     ! #e > 2, charge =+/-1, and #core=0
     if(sumocc > 2.0d0-0.001d0 .and. abs(chanet) < 1.0d0+0.001d0 .and. lecp >= 0) then
-      call chkcharge1(sumocc,chanet,ierr)
+      call chkcharge1(ifcomm,sumocc,chanet,ierr)
     else
-      call chkcharge(nchar,sumocc,iprog,ifbeta,lfc4,lecp,chanet,ierr)
+      call chkcharge(ifcomm,nchar,sumocc,iprog,ifbeta,lfc4,lecp,chanet,ierr)
     end if
     if(ierr /= 0)goto 1000
  end if
@@ -4002,8 +4020,9 @@ end
  contains
 
  ! check special cases of molecular charge: +/-1
- subroutine chkcharge1(sumocc,chanet,ierr)
+ subroutine chkcharge1(ifcomm,sumocc,chanet,ierr)
   implicit real(kind=8) (a-h,o-z)
+  logical           :: ifcomm
 
   ierr=0
 
@@ -4017,19 +4036,20 @@ end
   else if(docc < 1.0d-2)then
     write(*,"(/,' Warning! Strange occupation number: ',f10.4)")sumocc
     write(*,"(/,' Please check your AIM results carefully.')")
-    call xcontinue
+    if(.not. ifcomm) call xcontinue
   else
     write(*,"(/,' Error! Strange occupation number: ',f10.4)")sumocc
-    ierr=1
-    !call xcontinue
+    ! ierr=1
+    if(.not. ifcomm) call xcontinue
   end if
 
   return
  end subroutine chkcharge1
 
  ! check molecular charge
- subroutine chkcharge(nchar,sumocc,iprog,ifbeta,lfc4,lecp,chanet,ierr)
+ subroutine chkcharge(ifcomm,nchar,sumocc,iprog,ifbeta,lfc4,lecp,chanet,ierr)
   implicit real(kind=8) (a-h,o-z)
+  logical           :: ifcomm
   character*1       :: ioc
 
   ierr=1
@@ -4054,10 +4074,15 @@ end
   ! C4: RHF; Q-Chem: RHF, RDFT, ROGF, RODFT
   write(*,"(' 3) beta MOs of R-/RO-SCF are not printed by CFOUR or Q-Chem, and therefore',/,  &
     '    the occupation numbers should be multiplied by 2.0,',/,  &
-    ' 4) other reasons.',//,  &
-    ' Which one corresponds to your case?',/,' > ',$)")
+    ' 4) other reasons.',/)")
 
-  read(*,*)ioc
+  if(.not. ifcomm) then
+    write(*,"(' Which one corresponds to your case?',/,' > ',$)")
+    read(*,*)ioc
+  else
+    write(*,"(' Case 2) is assumed.')")
+    ioc = "2"
+  end if
 
   select case(ioc)
     case("1")
@@ -4076,7 +4101,7 @@ end
         write(*,"(/,' Please check your AIM results carefully.')")
       else
         write(*,"(/,' Error! Strange occupation: ',f10.4)")sumocc
-        goto 9910
+        !goto 9910
       end if
     case("3")
       if(ifbeta == 1) then
@@ -4098,7 +4123,7 @@ end
       write(*,"(/,' Unknown reason. Please report the problem.')")
       goto 9910
   end select
-  call xcontinue
+  if(.not. ifcomm) call xcontinue
   ierr=0
 
   9910  return
@@ -5840,7 +5865,8 @@ Subroutine ROADrv(imod1,imod2,igto,iprog,ctmp,ierr)
    if(index(ctmp,'[') /= 0 .and. index(ctmp,']') /= 0) exit
    ! STOBE may print MO coefficients like this
    ! 131-126.59660
-   im = index(ctmp,'-')
+   im = 0
+   if(index(ctmp,'=') == 0) im = index(ctmp,'-')
    if(im > 1) then
      write(imod2,"(a,1x,a)")ctmp(1:im-1),trim(ctmp(im:))
    else
@@ -6671,18 +6697,23 @@ end
 ! define file names
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine filename(imod,fnam,fmdn,fwfn,fwfx,fnbo)
+Subroutine filename(ifcomm,imod,fnam,fmdn,fwfn,fwfx,fnbo,fmod)
  implicit real(kind=8) (a-h,o-z)
+ logical           :: ifcomm
  character*150     :: fnam
  character*157     :: fwfn,fwfx,fnbo,fmod(2)
  character*164     :: fmdn
  character*7       :: exten(8)
  data exten/'.mol   ','.MOL   ','.mold  ','.MOLD  ','.molden','.MOLDEN','.gab   ','.GAB   '/
 
- write(*,"(/)")
- 100  write(*,"(' Type in the MOLDEN/GABEDIT file name within 150 characters:',/,  &
+ 100  if(.not. ifcomm) then
+   write(*,"(/,' Type in the MOLDEN/GABEDIT file name within 150 characters:',/,  &
         ' (extension mol/mold/molden/gab can be omitted; default: MOLDEN)',/,' > ',$)")
- read(*,"(a150)")fmod(1)(:)
+   read(*,"(a150)")fmod(1)(:)
+ else
+   fmod(1)(:) = fnam
+ end if
+
  lstr=nonspace(fmod(1)(:))
  lend=len_trim(fmod(1)(:))
  if(lend == 0)then                 ! use default file name
@@ -6715,8 +6746,12 @@ Subroutine filename(imod,fnam,fmdn,fwfn,fwfx,fnbo)
  do i=1,8
    write(*,"(1x,a)")fmod(1)(lstr:lend)//trim(exten(i))
  end do
- write(*,"(/,' Please try again.',/)")
- goto 100
+ if(.not. ifcomm) then
+   write(*,"(/,' Please try again.',/)")
+   goto 100
+ else
+   stop
+ end if
 
  300  write(*,"(/,' The MOLDEN/GABEDIT file ',a,' has been found.',/,1x,77('_'),/)") trim(fmod(iinp))
  fnam = trim(fmod(iinp))
@@ -6882,8 +6917,9 @@ end
 ! print supporting information
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine SuppInf
+Subroutine SuppInf(ifcomm)
  implicit real(kind=8) (a-h,o-z)
+ logical           :: ifcomm
 
  write(*,"(/,' Supported programs:',/,                                                 &
    '  1) ACES-II 2.9 (fix reorder.F, and insert [PROGRAM] ACES2 into MOLDEN file)',/,  &
@@ -6924,7 +6960,7 @@ Subroutine SuppInf
    '  1) ADF'                                                                          &
    )")
 
- call xcontinue
+ if(.not. ifcomm) call xcontinue
 
  return
 end
@@ -7307,6 +7343,40 @@ subroutine sysinf(isys,iout,mode1,mode2,fname)
 
  return
 end subroutine sysinf
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!
+!  Check whether in command line mode
+!
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+subroutine commandline(ifcomm,fnam,ctmp)
+ implicit real(kind=8) (a-h,o-z)
+ parameter(NArg=2)
+ character*150     :: fnam, ctmp
+ logical           :: ifcomm
+
+ ifcomm = .false.
+
+ ! read arguments
+ do i=1,NArg
+   call get_command_argument(i,ctmp)
+   !  call getarg(i,ctmp)
+   istr=nonspace(ctmp)
+   iend=len_trim(ctmp)
+   if(iend == 0) exit
+
+   if(i == 1) then
+     if(ctmp(istr:iend) == '-I' .or. ctmp(istr:iend) == '-i') then
+       ifcomm = .true.
+       fnam = ' '
+     end if
+   else if(i == 2) then
+     fnam = ctmp
+   end if
+ end do
+
+ return
+end
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
