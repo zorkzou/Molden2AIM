@@ -4,6 +4,10 @@
 Molden2AIM is a utility program which can be used to create AIM-WFN, AIM-WFX, and NBO-47 files from a Molden file.
 
 ## Recent Changes
+Version 5.0.6 (11/12/2021).
+
+1. Bug fix for reading MO coefficients printed in scientific notation.
+
 Version 5.0.5 (07/23/2021).
 
 1. In the title section of new-MOLDEN/WFN/WFX/47 files, print the hostname and the original MOLDEN file name with the full path by setting title=1 in m2a.ini.

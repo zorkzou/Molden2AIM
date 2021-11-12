@@ -39,8 +39,8 @@ program Molden2AIM
 !=================================================================================================================================
 !  head
 !=================================================================================================================================
- ver = "5.0.5"
- dt  = "07/23/2021"
+ ver = "5.0.6"
+ dt  = "11/12/2021"
  call headprt(ver,dt)
 
 !=================================================================================================================================
@@ -5866,7 +5866,15 @@ Subroutine ROADrv(imod1,imod2,igto,iprog,ctmp,ierr)
    ! STOBE may print MO coefficients like this
    ! 131-126.59660
    im = 0
-   if(index(ctmp,'=') == 0) im = index(ctmp,'-')
+   !call chl2u(ctmp,len_trim(ctmp))
+   if(index(ctmp,'=') == 0) then
+     im = index(ctmp,'-')
+     if(im > 2) then
+       i = im - 1
+       if(ctmp(i:i) == ' ' .or. ctmp(i:i) == 'e' .or. ctmp(i:i) == 'd' .or. &
+          ctmp(i:i) == 'E' .or. ctmp(i:i) == 'D') im = 0
+     end if
+   end if
    if(im > 1) then
      write(imod2,"(a,1x,a)")ctmp(1:im-1),trim(ctmp(im:))
    else
