@@ -25,23 +25,11 @@ program Molden2AIM
  dimension         :: ncar(2),nsph(2)
 
  dimension         :: ICntrl(8)
- logical           :: doit,ifopen,ifcomm,ifwbo
+ logical           :: doit, ifopen, ifcomm, ifwbo, L_ANSI
 
  character         :: fnam*150, fwfn*157, fwfx*157, fnbo*157, fmdn*164, ctmp*314
- character         :: dt*10, ver*5
+ character         :: dt*10 = "04/23/2023", ver*5 = "5.0.7"
  character         :: yn*1, L2U*1, stline*120
-
-!=================================================================================================================================
-!  command mode or not
-!=================================================================================================================================
- call commandline(ifcomm,fnam,ctmp)
-
-!=================================================================================================================================
-!  head
-!=================================================================================================================================
- ver = "5.0.6"
- dt  = "11/12/2021"
- call headprt(ver,dt)
 
 !=================================================================================================================================
 !  Initialization
@@ -77,7 +65,7 @@ program Molden2AIM
 
  lpspin=1            ! 0/1: print the $MOSPIN block in wfn (=1)
 
- iunknw=1            ! 0/1: print 0.0 for Energy and 2.0 for Virial Ratio
+ iunknw=1            ! 0/1: print 0.0 for unknown Energy and 2.0 for unknown Virial Ratio
 
 !=================================================================================================================================
 ! Port numbers. Do not modify them.
@@ -119,12 +107,24 @@ program Molden2AIM
  lspout=0            ! 0/1: saved MOs are in Cartesian or spherical basis functions
  tolocc=0.0d0        ! tolerance of occupation number
  nbopro=0            ! 0/1: more data will be printed in NBO-47 if nbopro=1
+ L_ANSI=.false.
+
+!=================================================================================================================================
+!  command mode or not
+!=================================================================================================================================
+ call commandline(ifcomm,fnam,ctmp)
 
 !=================================================================================================================================
 !  read user's parameters from m2a.ini
 !=================================================================================================================================
  call crtini(iini)
- call usrini(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp,ledt,lpspin,lspout,iunknw,ititle,tolocc,nbopro,stline)
+ call usrini(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp,ledt,lpspin,lspout,iunknw,ititle,tolocc,nbopro,L_ANSI,stline)
+ if(ifcomm) L_ANSI = .false.
+
+!=================================================================================================================================
+!  head
+!=================================================================================================================================
+ call headprt(L_ANSI,ver,dt,stline,ctmp)
 
 !=================================================================================================================================
 !  program list which can save MOLDEN file
@@ -168,9 +168,9 @@ program Molden2AIM
    if(ierr == 1) goto 9910
 
 !=================================================================================================================================
-!  Program
+!  Program, Energy, and Virial Ratio
 !=================================================================================================================================
- call RdProg(imod,nprog,iprog,stline,ierr)
+ call RdProg(imod,nprog,iprog,enetot,vratio,stline,ierr)
    if(ierr == 1) goto 9910
 
 !=================================================================================================================================
@@ -370,7 +370,7 @@ program Molden2AIM
 
  if(doit) then
    call genwfn(iwfn,fwfn,isys,ver,dt,ititle,lpspin, nat,lecp,iza,icore,xyz,  MaxL,nshell,mapatm,lqnm,nshlls,nshlln,  &
-     expgto,congto,ncar(1),ncar(2),nmotot,nmoprt,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  stline)
+     expgto,congto,ncar(1),ncar(2),nmotot,nmoprt,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  enetot,vratio,  stline)
 
    ! Check the AIM-WFN file
    if(ICntrl(5) > 0)then
@@ -420,7 +420,7 @@ program Molden2AIM
  if(doit) then
    call genwfx(ifcomm,iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,ledt,chanet,ntote,nat,iza,icore,xyz,  &
      MaxL,nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  &
-     ncar(1),ncar(2),nmotot,nmoprt,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  iunknw,stline)
+     ncar(1),ncar(2),nmotot,nmoprt,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  iunknw,enetot,vratio,stline)
 
    ! Check the AIM-WFX file
    if(ICntrl(6) > 0)then
@@ -2177,7 +2177,7 @@ end
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Subroutine genwfx(ifcomm,iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,iedftyp,chanet,ntote,nat,iza,icore,xyz,  &
  MaxL,nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  &
- ncarp,ncarc,nmotot,nmo,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  iunknw,ctmp)
+ ncarp,ncarc,nmotot,nmo,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  iunknw,enetot,vratio,ctmp)
  implicit real(kind=8) (a-h,o-z)
  logical           :: ifcomm
  character*157     :: fwfx
@@ -2193,7 +2193,7 @@ Subroutine genwfx(ifcomm,iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,iedftyp,chanet
 
  call wfxmain(ifcomm,iwfx,isys,ver,dt,ititle,  nat,chanet,ntote,iedf,lecp,nedf,iza,icore,xyz,  &
    nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  &
-   ncarp,ncarc,nmotot,nmo,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  iunknw,ctmp)
+   ncarp,ncarc,nmotot,nmo,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  iunknw,enetot,vratio,ctmp)
 
  ! final step
  call finalwfx(fwfx,lecp,iunknw,MaxL)
@@ -2243,7 +2243,7 @@ Subroutine genwfx(ifcomm,iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,iedftyp,chanet
  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
  subroutine wfxmain(ifcomm,iwfx,isys,ver,dt,ititle,  nat,chanet,ntote,iedf,lecp,nedf,iza,icore,xyz,  &
    nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  &
-   ncarp,ncarc,nmotot,nmo,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  iunknw,ctmp)
+   ncarp,ncarc,nmotot,nmo,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  iunknw,enetot,vratio,ctmp)
   parameter(enemax=9999.d0)
   implicit real(kind=8) (a-h,o-z)
   logical           :: ifcomm
@@ -2508,7 +2508,9 @@ Subroutine genwfx(ifcomm,iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,iedftyp,chanet
   write(iwfx,"('# For CCSD, this is the CCSD total energy.')")
   write(iwfx,"('# etc.')")
   call wfxlab(iwfx,0,"Energy = T + Vne + Vee + Vnn")
-  if(iunknw == 0) then
+  if(abs(enetot) > 1.0d-8) then
+    write(iwfx,"(e21.12e3)") enetot
+  else if(iunknw == 0) then
     write(iwfx,"(' UNKNOWN')")
   else
     write(iwfx,"(e21.12e3)") 0.d0
@@ -2517,7 +2519,9 @@ Subroutine genwfx(ifcomm,iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,iedftyp,chanet
 
   ! Virial Ratio (-V/T)
   call wfxlab(iwfx,0,"Virial Ratio (-V/T)")
-  if(iunknw == 0) then
+  if(vratio > 1.0d-1) then
+    write(iwfx,"(e21.12e3)") vratio
+  else if(iunknw == 0) then
     write(iwfx,"(' UNKNOWN')")
   else
     write(iwfx,"(e21.12e3)") 2.d0
@@ -2655,7 +2659,7 @@ end
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Subroutine genwfn(iwfn,fwfn,isys,ver,dt,ititle,lpspin,  nat,lecp,iza,icore,xyz,  MaxL,nshell,mapatm,lqnm,nshlls,nshlln,  &
- expgto,congto,ncarp,ncarc,nmotot,nmo,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  tmp)
+ expgto,congto,ncarp,ncarc,nmotot,nmo,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  enetot,vratio,  tmp)
  implicit real(kind=8) (a-h,o-z)
  character*5       :: ver
  character*10      :: dt
@@ -2685,7 +2689,11 @@ Subroutine genwfn(iwfn,fwfn,isys,ver,dt,ititle,lpspin,  nat,lecp,iza,icore,xyz, 
  deallocate(expg, conf, ityp, icmo, cn)
 
  write(iwfn,"('END DATA')")
- write(iwfn,"(' THE  HF ENERGY =',f20.12,' THE VIRIAL(-V/T)=',f13.8)")0.d0,2.d0
+ if(vratio > 1.0d-1) then
+   write(iwfn,"(' THE  HF ENERGY =',f20.12,' THE VIRIAL(-V/T)=',f13.8)") enetot, vratio
+ else
+   write(iwfn,"(' THE  HF ENERGY =',f20.12,' THE VIRIAL(-V/T)=',f13.8)") enetot, 2.d0
+ end if
 
  ! Spin of MO. These data can be used by MultiWFN.
  ! if lalph=0, "Spin" cannot be found in Molden
@@ -3047,7 +3055,7 @@ Subroutine PrtListMO(nmotot,nmoprt,IAllMO,tolocc,occup,lprtmo)
    lprtmo = 0
    nmoprt = 0
    do i = 1, nmotot
-     if(occup(i) >= tolocc) then
+     if(abs(occup(i)) >= tolocc) then    ! occ can be negative for NOs
        lprtmo(i) = 1
        nmoprt = nmoprt + 1
      end if
@@ -3055,7 +3063,7 @@ Subroutine PrtListMO(nmotot,nmoprt,IAllMO,tolocc,occup,lprtmo)
  end if
 
  return
-end
+end Subroutine PrtListMO
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
@@ -5620,16 +5628,20 @@ end
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
-! Get iname if it is not known
+! Get iname if it is not known. Also read Energy and Virial Ratio for some programs (ifread).
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine RdProg(imod,nprog,iname,tmp1,ierr)
+Subroutine RdProg(imod,nprog,iname,enetot,vratio,tmp1,ierr)
  implicit real(kind=8) (a-h,o-z)
  character*10,allocatable :: pname(:)
  character*100     :: tmp1
+ logical  :: ifread
  100  format(' >>> This MOLDEN file was generated by ',a,/)
 
  ierr = 0
+ enetot = 0.0d0
+ vratio =-1.0d0
+ ifread = .false.
  allocate(pname(nprog))
 
  ! MOLDEN files generated by the following programs require special modifications
@@ -5688,7 +5700,16 @@ Subroutine RdProg(imod,nprog,iname,tmp1,ierr)
      ! [MOLPRO VARIABLES] block
      if(index(tmp1,'[MOLPRO VARIABLES]') /= 0) then
        iname=0
+       ifread = .true.
        write(*,100)"Molpro"
+       exit Loop1
+     end if
+
+     ! [BDF VARIABLES] block
+     if(index(tmp1,'[BDF VARIABLES]') /= 0) then
+       iname=0
+       ifread = .true.
+       write(*,100)"BDF"
        exit Loop1
      end if
 
@@ -5737,6 +5758,50 @@ Subroutine RdProg(imod,nprog,iname,tmp1,ierr)
  end if
 
  deallocate(pname)
+
+ ! read Energy and Virial Ratio
+ if(ifread) then
+   rewind(imod)
+
+   Loop3: do while(.true.)
+     read(imod,"(a100)",iostat=irdfin)tmp1
+     if(irdfin /= 0) exit
+     call charl2u(tmp1)
+
+     ! [MOLPRO VARIABLES] block
+     if(index(tmp1,'[MOLPRO VARIABLES]') /= 0) then
+       Loop4: do while(.true.)
+         read(imod,"(a100)")tmp1
+         if(len_trim(tmp1) == 0) exit Loop3
+         if(index(tmp1,'[') /= 0 .and. index(tmp1,']') /= 0) exit Loop3
+         call charl2u(tmp1)
+
+         if(index(tmp1,'_ENERGY=') /= 0) then
+           read(tmp1(9:),*) enetot
+           exit Loop3
+         end if
+       end do Loop4
+     end if
+
+     ! [BDF VARIABLES] block
+     if(index(tmp1,'[BDF VARIABLES]') /= 0) then
+       Loop5: do while(.true.)
+         read(imod,"(a100)")tmp1
+         if(len_trim(tmp1) == 0) exit Loop3
+         if(index(tmp1,'[') /= 0 .and. index(tmp1,']') /= 0) exit Loop3
+         call charl2u(tmp1)
+
+         if(index(tmp1,'ENERGY=') /= 0) read(tmp1(8:),*) enetot
+         if(index(tmp1,'-V/T=') /= 0) then
+           read(tmp1(6:),*) vratio
+           exit Loop3
+         end if
+       end do Loop5
+     end if
+
+   end do Loop3
+ end if
+
  return
 
  8100 write(*,"(' *** Error! Cannot get the name from [PROGRAM]!')")
@@ -5748,7 +5813,7 @@ Subroutine RdProg(imod,nprog,iname,tmp1,ierr)
  8300 write(*,"(' *** Error! Cannot get the title from [TITLE]!')")
  ierr = 1
  return
-end
+end Subroutine RdProg
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
@@ -6779,14 +6844,15 @@ end
 ! Read user's initialization parameters from m2a.ini
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine usrini(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp,ledt,lpspin,lspout,iunknw,ititle,tolocc,nbopro,ctmp)
+Subroutine usrini(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp,ledt,lpspin,lspout,iunknw,ititle,tolocc,nbopro,ifansi,ctmp)
  implicit real(kind=8) (a-h,o-z)
- parameter(nkey=19)
+ parameter(nkey=20)
  Dimension         :: ICntrl(8)
+ logical           :: ifansi
  character*100     :: ctmp
  character*9       :: keyword(nkey)
  data keyword/"MOLDEN=","WFN=","WFX=","NBO=","WFNCHECK=","WFXCHECK=","NBOCHECK=","WBO=","PROGRAM=","CLEAR=","ALLMO=",  &
-   "NOSUPP=","RDCORE=","EDFTYP=","PRSPIN=","CARSPH=","NBOPRO=","UNKNOWN=","TITLE="/
+   "NOSUPP=","RDCORE=","EDFTYP=","PRSPIN=","CARSPH=","NBOPRO=","UNKNOWN=","TITLE=","ANSI="/
 
  open(iini,file='m2a.ini',status='old',err=9000)
  write(*,"(/,' m2a.ini has been loaded.')")
@@ -6861,6 +6927,9 @@ Subroutine usrini(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp,ledt,lpspin,lspout,
      case(19)
        ititle = 0
        if(keyvalue == 1) ititle = 1
+     case(20)
+       ifansi = .false.
+       if(keyvalue == 1) ifansi = .true.
    end select
  end do
  close(iini)
@@ -6877,7 +6946,7 @@ Subroutine usrini(iini,nprog,ICntrl,ICln,IAllMO,iprog,nosupp,ledt,lpspin,lspout,
  if(nbopro == 1) lspout = 1
 
  return
-End
+End subroutine usrini
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
@@ -7029,8 +7098,8 @@ Subroutine crtini(iini)
  write(iini,*)
  write(iini,"('########################################################################')")
  write(iini,"('#  Which orbirals will be printed in the new-MOLDEN, WFN, and WFX files?')")
- write(iini,"('# =0: print only the orbitals with occ. number > 5.0d-8')")
- write(iini,"('# <0: print only the orbitals with occ. number > 0.1 (debug only)')")
+ write(iini,"('# =0: print only the orbitals with |occ. number| > 5.0d-8')")
+ write(iini,"('# <0: print only the orbitals with |occ. number| > 0.1 (debug only)')")
  write(iini,"('# >0: print all the orbitals')")
  write(iini,"('allmo=1')")
  write(iini,*)
@@ -7041,8 +7110,8 @@ Subroutine crtini(iini)
  write(iini,*)
  write(iini,"('########################################################################')")
  write(iini,"('#  Used for WFX only')")
- write(iini,"('# =0: print UNKNOWN for Energy and Virial Ratio')")
- write(iini,"('# .ne. 0: print 0.0 for Energy and 2.0 for Virial Ratio')")
+ write(iini,"('# =0: print UNKNOWN for unknown Energy and Virial Ratio')")
+ write(iini,"('# .ne. 0: print 0.0 for unknown Energy and 2.0 for unknown Virial Ratio')")
  write(iini,"('unknown=1')")
  write(iini,*)
  write(iini,"('########################################################################')")
@@ -7071,13 +7140,18 @@ Subroutine crtini(iini)
  write(iini,"('clear=1            ! delete temporary files (1) or not (0)')")
  write(iini,*)
  write(iini,"('########################################################################')")
+ write(iini,"('#  Use ANSI colors in the terminal.')")
+ write(iini,"('#  Use 0 for older Windows OS than Windows 10.')")
+ write(iini,"('ansi=0             ! supported (1) or unsupported/unused (0)')")
+ write(iini,*)
+ write(iini,"('########################################################################')")
  write(iini,*)
 
  close(iini)
  write(*,"(/,' m2a.ini has been created.')")
 
  return
-End
+end subroutine crtini
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
@@ -7102,15 +7176,33 @@ end
 ! print a head
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine headprt(ver,dt)
+Subroutine headprt(if_ansi,ver,dt,ctmp1,ctmp2)
  implicit real(kind=8) (a-h,o-z)
- character*10      :: dt
- character*5       :: ver
+ logical           :: if_ansi
+ character         :: dt*10, ver*5, ctmp1*90, ctmp2*90
 
- write(*,"(//,1x,77('*'),/,31x,            '*  Molden2AIM  *',/,26x,       'Version ',a5,',  ',a10,/,  &
-   6x,'It converts the format from MOLDEN to AIM-WFN, AIM-WFX, and NBO-47.',/,1x,77('*'),/)")ver,dt
+ if(if_ansi) then
+   ! ANSI codes used here: 1 ('bright'), 2 ('faint'), 3 ('italic'), 34 ('blue'), 36 ('cyan')
+   ctmp1= char(27) // '[0;2;36m' // '*****************************************************************************' //  &
+          char(27) // '[m'
+   write(*,"( 1x,a)") trim(ctmp1)
+   ctmp2= char(27) // '[0;2;36m' // '*' // char(27) // '[m' //   &
+          char(27) // '[0;1;34m' // '  Molden2AIM  ' // char(27) // '[m' //  &
+          char(27) // '[0;2;36m' // '*' // char(27) // '[m'
+   write(*,"(31x,a)") trim(ctmp2)
+   ctmp2= char(27) // '[0;36m' // 'Version ' // ver // ',  ' // dt // char(27) // '[m'
+   write(*,"(26x,a)") trim(ctmp2)
+   ctmp2= char(27) // '[0;1;3;36m' // 'A tool to convert the format from MOLDEN to AIM-WFN, AIM-WFX, and NBO-47.' //  &
+          char(27) // '[m'
+   write(*,"( 3x,a)") trim(ctmp2)
+   write(*,"( 1x,a)") trim(ctmp1)
+ else
+   write(*,"(//,1x,77('*'),/,31x,            '*  Molden2AIM  *',/,26x,       'Version ',a5,',  ',a10,/,  &
+     3x,'A tool to convert the format from MOLDEN to AIM-WFN, AIM-WFX, and NBO-47.',/,1x,77('*'),/)") ver,dt
+ end if
+
  return
-end
+end subroutine headprt
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
