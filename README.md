@@ -4,6 +4,10 @@
 Molden2AIM is a utility program which can be used to create AIM-WFN, AIM-WFX, and NBO-47 files from a Molden file.
 
 ## Recent Changes
+Version 5.0.8 (07/01/2023).
+
+1. Bug fix: xenon was identified as a dummy atom by mistake.
+
 Version 5.0.7 (04/23/2023).
 
 1. A new option `ANSI` for colors in terminal.

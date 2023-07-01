@@ -28,7 +28,7 @@ program Molden2AIM
  logical           :: doit, ifopen, ifcomm, ifwbo, L_ANSI
 
  character         :: fnam*150, fwfn*157, fwfx*157, fnbo*157, fmdn*164, ctmp*314
- character         :: dt*10 = "04/23/2023", ver*5 = "5.0.7"
+ character         :: dt*10 = "07/01/2023", ver*5 = "5.0.8"
  character         :: yn*1, L2U*1, stline*120
 
 !=================================================================================================================================
@@ -6093,7 +6093,7 @@ Subroutine ROADrv(imod1,imod2,igto,iprog,ctmp,ierr)
     ! Dummy atom or ghost atom?
     read(ctmp,*) Elm, i1, i2
     call chl2u(Elm,len_trim(Elm))
-    if(Elm(1:1) == "X" .or. Elm(1:1) == "Q" .or. i2 == 0) cycle
+    if( (Elm(1:1) == "X" .and. Elm(1:2) /= "XE") .or. Elm(1:1) == "Q" .or. i2 == 0) cycle
 
     NAtm = NAtm +1
   end do
