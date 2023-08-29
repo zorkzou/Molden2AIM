@@ -20,6 +20,7 @@ program Molden2AIM
                   expgto(:),        &  ! primitive exponent of each primitive shell
                   congto(:),        &  ! contraction coeffients of each primitive shell
                   scalmocar(:)         ! scaling factor of each contracted Cartesian function
+ logical, allocatable   :: lghst(:)    ! ghost atom or not
 
  ! Cartesian NC-/C-GTFs; Spherical NC-/C-GTFs
  dimension         :: ncar(2),nsph(2)
@@ -28,7 +29,7 @@ program Molden2AIM
  logical           :: doit, ifopen, ifcomm, ifwbo, L_ANSI
 
  character         :: fnam*150, fwfn*157, fwfx*157, fnbo*157, fmdn*164, ctmp*314
- character         :: dt*10 = "07/01/2023", ver*5 = "5.0.8"
+ character         :: dt*10 = "08/29/2023", ver*5 = "5.1.0"
  character         :: yn*1, L2U*1, stline*120
 
 !=================================================================================================================================
@@ -162,7 +163,7 @@ program Molden2AIM
  if(ititle == 1) open(isys,file='sys123456789.tmp')
 
 !=================================================================================================================================
-!  check the molden file, and search the [PSEUDO] (lrdecp = 1) or [CORE] (lrdecp = 2) block
+!  check the molden file, and search the [PSEUDO] (lrdecp = 1), [CORE] (lrdecp = 2), or [NVAL] (lrdecp = 3) block
 !=================================================================================================================================
  call ChkMolden(imod,lrdecp,stline,ierr)
    if(ierr == 1) goto 9910
@@ -223,7 +224,7 @@ program Molden2AIM
  if(iprog /= 0) call chkbstyp(lsph,iprog,MaxL,ierr)
    if(ierr == 1) goto 9910
 
- allocate(iza(nat), icore(nat), s2cd(30), s2cf(70), s2cg(135), s2ch(231),  &
+ allocate(iza(nat), icore(nat), lghst(nat), s2cd(30), s2cf(70), s2cg(135), s2ch(231),  &
    xyz(3,nat), ene(nmotot), ispin(nmotot), occup(nmotot), lprtmo(nmotot),  &
    carmo(ncar(2)*nmotot), sphmo(nsph(2)*nmotot), scalmocar(ncar(2)), mapatm(nshell), lqnm(nshell),  &
    nshlls(nshell), nshlln(nshell), expgto(ngto), congto(ngto),  &
@@ -236,7 +237,7 @@ program Molden2AIM
 !=================================================================================================================================
 !  read atomic coordinates from iatm
 !=================================================================================================================================
- call RdAtoms(iatm,nat,iza,xyz)
+ call RdAtoms(iatm,nat,iza,lghst,xyz)
 
 !=================================================================================================================================
 !  read basis functions
@@ -286,7 +287,7 @@ program Molden2AIM
 !  read core data
 !=================================================================================================================================
  chanet = 0.d0
- call RdCore(ifcomm,imtm,iprog,chanet,ntote,nchar,sumocc,lrdecp,nat,lbeta,lfc4,lecp,iza,icore,stline,yn,ierr)
+ call RdCore(ifcomm,imtm,iprog,chanet,ntote,nchar,sumocc,lrdecp,nat,lbeta,lfc4,lecp,iza,icore,lghst,stline,yn,ierr)
    if(ierr == 1) goto 9910
  ! check occup
  call ChkOcc(lbeta,lfc4,sumocc,nmotot,occup,ierr)
@@ -341,10 +342,10 @@ program Molden2AIM
 
  if(doit) then
    if(lspout == 1) then
-     call genmdn(fmdn,inmd,isym,isys,ver,dt,ititle,nat,MaxL,lecp,iza,icore,xyz, nshell,mapatm,lqnm,nshlls,nshlln,  &
+     call genmdn(fmdn,inmd,isym,isys,ver,dt,ititle,nat,MaxL,lecp,iza,icore,lghst,xyz, nshell,mapatm,lqnm,nshlls,nshlln,  &
        expgto,congto,lspout,nmotot,nsph(2),lsymm,ispin,ene,occup,lprtmo,sphmo,stline)
    else
-     call genmdn(fmdn,inmd,isym,isys,ver,dt,ititle,nat,MaxL,lecp,iza,icore,xyz, nshell,mapatm,lqnm,nshlls,nshlln,  &
+     call genmdn(fmdn,inmd,isym,isys,ver,dt,ititle,nat,MaxL,lecp,iza,icore,lghst,xyz, nshell,mapatm,lqnm,nshlls,nshlln,  &
        expgto,congto,lspout,nmotot,ncar(2),lsymm,ispin,ene,occup,lprtmo,carmo,stline)
    end if
    write(*,8000)
@@ -369,8 +370,9 @@ program Molden2AIM
  end if
 
  if(doit) then
-   call genwfn(iwfn,fwfn,isys,ver,dt,ititle,lpspin, nat,lecp,iza,icore,xyz,  MaxL,nshell,mapatm,lqnm,nshlls,nshlln,  &
-     expgto,congto,ncar(1),ncar(2),nmotot,nmoprt,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  enetot,vratio,  stline)
+   call genwfn(iwfn,fwfn,isys,ver,dt,ititle,lpspin, nat,lecp,iza,icore,lghst,xyz,  MaxL,nshell,mapatm,lqnm,  &
+     nshlls,nshlln,expgto,congto,ncar(1),ncar(2),nmotot,nmoprt,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,     &
+     enetot,vratio,  stline)
 
    ! Check the AIM-WFN file
    if(ICntrl(5) > 0)then
@@ -418,7 +420,7 @@ program Molden2AIM
  end if
 
  if(doit) then
-   call genwfx(ifcomm,iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,ledt,chanet,ntote,nat,iza,icore,xyz,  &
+   call genwfx(ifcomm,iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,ledt,chanet,ntote,nat,iza,icore,lghst,xyz,  &
      MaxL,nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  &
      ncar(1),ncar(2),nmotot,nmoprt,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  iunknw,enetot,vratio,stline)
 
@@ -493,8 +495,8 @@ program Molden2AIM
      OPEN(iwbo,FILE=(fnbo(1:lenth)//'_wbo.out'))
    end if
 
-   call DrvNBO(inbo,fnbo,isys,ver,dt,ititle,nbopro,  nat,iza,icore,xyz,  MaxL,lspout,nshell,ngto,ncar(2),nsph(2),mapatm,  &
-     lqnm,nshlls,nshlln,expgto,congto,  nmotot,lalph,lbeta,ispin,ene,occup,carmo,sphmo,  iwbo,ifwbo,  ierr,stline)
+   call DrvNBO(inbo,fnbo,isys,ver,dt,ititle,nbopro,  nat,iza,icore,lghst,xyz,  MaxL,lspout,nshell,ngto,ncar(2),nsph(2),  &
+     mapatm,lqnm,nshlls,nshlln,expgto,congto,  nmotot,lalph,lbeta,ispin,ene,occup,carmo,sphmo,  iwbo,ifwbo,  ierr,stline)
    if(ierr /= 0) goto 9910
 
    ! Check the NBO .47 file
@@ -522,7 +524,7 @@ program Molden2AIM
  end if
 
  !================================================================================================================================
- deallocate(iza, icore, s2cd, s2cf, s2cg, s2ch, xyz, ene, ispin, occup, lprtmo, carmo, sphmo, scalmocar, mapatm, lqnm,  &
+ deallocate(iza, icore, lghst, s2cd, s2cf, s2cg, s2ch, xyz, ene, ispin, occup, lprtmo, carmo, sphmo, scalmocar, mapatm, lqnm,  &
    nshlls, nshlln, expgto, congto)
  9910  continue
 
@@ -1169,7 +1171,7 @@ end
 ! generate an NBO-47 file.
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine DrvNBO(inbo,fnbo,isys,ver,dt,ititle,nbopro,  nat,iza,icore,xyz,  MaxL,lsph,nshell,ngto,ncar,nsph,mapatm,lqnm,  &
+Subroutine DrvNBO(inbo,fnbo,isys,ver,dt,ititle,nbopro,  nat,iza,icore,lghst,xyz,  MaxL,lsph,nshell,ngto,ncar,nsph,mapatm,lqnm,  &
  nshlls,nshlln,expgto,congto,  nmotot,lalph,lbeta,ispin,ene,occup,carmo,sphmo,  iwbo,ifwbo,  ierr,ctmp) !
  implicit real(kind=8) (a-h,o-z)
  character*157     :: fnbo
@@ -1177,16 +1179,16 @@ Subroutine DrvNBO(inbo,fnbo,isys,ver,dt,ititle,nbopro,  nat,iza,icore,xyz,  MaxL
  character*10      :: dt
  dimension         :: iza(*), icore(*), xyz(*), mapatm(*), lqnm(*), nshlls(*), nshlln(*), expgto(*), congto(*),  &
                       ispin(nmotot), ene(nmotot), occup(nmotot), carmo(ncar,nmotot), sphmo(nsph,nmotot)
- logical           :: ifwbo
+ logical           :: lghst(*), ifwbo
  character*120     :: ctmp
 
  open(inbo,file=fnbo)
 
  if(lsph == 0) then
-   call nbomain(inbo,isys,ver,dt,ititle,nbopro,lalph,lbeta,  nat,iza,icore,xyz,  MaxL,lsph,nshell,ngto,ncar,mapatm,lqnm,  &
+   call nbomain(inbo,isys,ver,dt,ititle,nbopro,lalph,lbeta,  nat,iza,icore,lghst,xyz,  MaxL,lsph,nshell,ngto,ncar,mapatm,lqnm,  &
      nshlls,nshlln,expgto,congto,  nmotot,ispin,ene,occup,carmo,  iwbo,ifwbo,  ctmp,ierr)
  else
-   call nbomain(inbo,isys,ver,dt,ititle,nbopro,lalph,lbeta,  nat,iza,icore,xyz,  MaxL,lsph,nshell,ngto,nsph,mapatm,lqnm,  &
+   call nbomain(inbo,isys,ver,dt,ititle,nbopro,lalph,lbeta,  nat,iza,icore,lghst,xyz,  MaxL,lsph,nshell,ngto,nsph,mapatm,lqnm,  &
      nshlls,nshlln,expgto,congto,  nmotot,ispin,ene,occup,sphmo,  iwbo,ifwbo,  ctmp,ierr)
  end if
  if(ierr /= 0) return
@@ -1222,7 +1224,7 @@ Subroutine DrvNBO(inbo,fnbo,isys,ver,dt,ititle,nbopro,  nat,iza,icore,xyz,  MaxL
  ! 2) T and V: optional but not calculated here. They are not defined in the case of all-electron scalar relativistic calculation.
  !
  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
- subroutine nbomain(inbo,isys,ver,dt,ititle,nbopro,lalph,lbeta,  natm,iza,icore,xyz,  MaxL,lsph,nshell,nexp,nbas,mapatm,  &
+ subroutine nbomain(inbo,isys,ver,dt,ititle,nbopro,lalph,lbeta,  natm,iza,icore,lghst,xyz,  MaxL,lsph,nshell,nexp,nbas,mapatm,  &
   lqnm,nshlls,nshlln,expgto,congto,  nmo,ispin,ene,occup,cmo,  iwbo,ifwbo,  ctmp,ierr)
   implicit real(kind=8) (a-h,o-z)
   parameter(au2ang=0.529177249d0)
@@ -1232,6 +1234,7 @@ Subroutine DrvNBO(inbo,fnbo,isys,ver,dt,ititle,nbopro,  nat,iza,icore,xyz,  MaxL
   character*120     :: ctmp
   dimension         :: iza(*), icore(*), xyz(3,*), mapatm(*), lqnm(*), nshlls(*), nshlln(*), expgto(*), congto(*), ispin(*),  &
                        ene(*), occup(*), cmo(nbas,nmo)
+  logical           :: lghst(*)
   allocatable       :: ncomp(:), nc(:), label(:), s2cd(:), s2cf(:), s2cg(:), s2ch(:), smat(:), pmat(:), scr1(:), scr2(:)
 
   iopen = 1         ! UHF or UKS?
@@ -1282,7 +1285,11 @@ Subroutine DrvNBO(inbo,fnbo,isys,ver,dt,ititle,nbopro,  nat,iza,icore,xyz,  MaxL
   !    digits should be printed.
   ! 2. au2ang: in NBO3, 0.529177249 is used instead of 0.529177. This may be also true in NBO6.
   do i=1,natm
-    write(inbo,"(1x,2i5,3f18.9)")iza(i),iza(i)-icore(i),(xyz(j,i)*au2ang,j=1,3)
+    if(lghst(i)) then    ! ghost atom
+      write(inbo,"(1x,2i5,3f18.9)")iza(i),0,(xyz(j,i)*au2ang,j=1,3)
+    else
+      write(inbo,"(1x,2i5,3f18.9)")iza(i),iza(i)-icore(i),(xyz(j,i)*au2ang,j=1,3)
+    end if
   end do
   write(inbo,"(' $END')")
 
@@ -2168,14 +2175,14 @@ Subroutine DrvNBO(inbo,fnbo,isys,ver,dt,ititle,nbopro,  nat,iza,icore,xyz,  MaxL
   1110  format(a10,4e16.7)
  end subroutine fwrite
 
-end
+end Subroutine DrvNBO
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
 ! generate a wfx file.
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine genwfx(ifcomm,iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,iedftyp,chanet,ntote,nat,iza,icore,xyz,  &
+Subroutine genwfx(ifcomm,iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,iedftyp,chanet,ntote,nat,iza,icore,lghst,xyz,  &
  MaxL,nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  &
  ncarp,ncarc,nmotot,nmo,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  iunknw,enetot,vratio,ctmp)
  implicit real(kind=8) (a-h,o-z)
@@ -2185,13 +2192,14 @@ Subroutine genwfx(ifcomm,iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,iedftyp,chanet
  character*10      :: dt
  dimension         :: iza(*), icore(*), xyz(*), mapatm(*), lqnm(*), nshlls(*), nshlln(*), expgto(*), congto(*),  &
                       ispin(*), ene(*), occup(*), lprtmo(*), carmo(ncarc,*)
+ logical           :: lghst(*)
  character*100     :: ctmp
 
- call edfmain(iedf,lecp,iedftyp,nat,nedf,iza,icore)
+ call edfmain(iedf,lecp,iedftyp,nat,nedf,iza,icore,lghst)
 
  open(iwfx,file=fwfx)
 
- call wfxmain(ifcomm,iwfx,isys,ver,dt,ititle,  nat,chanet,ntote,iedf,lecp,nedf,iza,icore,xyz,  &
+ call wfxmain(ifcomm,iwfx,isys,ver,dt,ititle,  nat,chanet,ntote,iedf,lecp,nedf,iza,icore,lghst,xyz,  &
    nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  &
    ncarp,ncarc,nmotot,nmo,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  iunknw,enetot,vratio,ctmp)
 
@@ -2226,13 +2234,7 @@ Subroutine genwfx(ifcomm,iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,iedftyp,chanet
  !        Within a block of post-SCF natural MOs, they should be in the
  !        order of decreasing occupancy.
  !
- !        >>>>>>>>>>>>>>>>>>>>>>>>>> Not considered at present!
- !
- !     5. Non-nuclear attractors can be added to the .wfx file as nuclei
- !        with atomic number 0, nuclear charge 0.0 and with names begin-
- !        ning with NNA (e.g., NNA8).
- !        and
- !        Ghost atoms can be added to the .wfx file as nuclei with atomic
+ !     5. Ghost atoms can be added to the .wfx file as nuclei with atomic
  !        number 0, nuclear charge 0.0 and with names beginning with Bq
  !        (e.g., Bq12).  The coordinates of ghost nuclei must appear in
  !        the appropriate position of the <Nuclear Cartesian Coordinates>
@@ -2240,8 +2242,14 @@ Subroutine genwfx(ifcomm,iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,iedftyp,chanet
  !
  !        >>>>>>>>>>>>>>>>>>>>>>>>>> Not considered at present!
  !
+ !     6. Non-nuclear attractors can be added to the .wfx file as nuclei
+ !        with atomic number 0, nuclear charge 0.0 and with names begin-
+ !        ning with NNA (e.g., NNA8).
+ !
+ !        >>>>>>>>>>>>>>>>>>>>>>>>>> Not considered at present!
+ !
  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
- subroutine wfxmain(ifcomm,iwfx,isys,ver,dt,ititle,  nat,chanet,ntote,iedf,lecp,nedf,iza,icore,xyz,  &
+ subroutine wfxmain(ifcomm,iwfx,isys,ver,dt,ititle,  nat,chanet,ntote,iedf,lecp,nedf,iza,icore,lghst,xyz,  &
    nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  &
    ncarp,ncarc,nmotot,nmo,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  iunknw,enetot,vratio,ctmp)
   parameter(enemax=9999.d0)
@@ -2252,8 +2260,8 @@ Subroutine genwfx(ifcomm,iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,iedftyp,chanet
   character*100     :: ctmp
   dimension         :: iza(*), icore(*), xyz(3,*), mapatm(*), lqnm(*), nshlls(*), nshlln(*), expgto(*), congto(*),  &
                        ispin(*), ene(*), occup(*), lprtmo(*), carmo(ncarc,*)
+  logical           :: lghst(*), prtspn
   allocatable       :: expg(:), conf(:), ityp(:), icmo(:), cn(:)
-  logical           :: prtspn
 
   rewind(iwfx)
 
@@ -2392,13 +2400,23 @@ Subroutine genwfx(ifcomm,iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,iedftyp,chanet
 
   ! Atomic Numbers (Z)
   call wfxlab(iwfx,0,"Atomic Numbers")
-  write(iwfx,"(i8)")(iza(i),i=1,nat)
+  do i=1,nat
+    if(lghst(i)) then    ! ghost atom
+      write(iwfx,"(i8)") 0
+    else
+      write(iwfx,"(i8)") iza(i)
+    end if
+  end do
   call wfxlab(iwfx,1,"Atomic Numbers")
 
   ! Nuclear Charges (Z-#core)
   call wfxlab(iwfx,0,"Nuclear Charges")
   do i=1,nat
-    write(iwfx,"(e21.12e3)")dble(iza(i)-icore(i))
+    if(lghst(i)) then    ! ghost atom
+      write(iwfx,"(e21.12e3)") 0.0d0
+    else
+      write(iwfx,"(e21.12e3)") dble(iza(i)-icore(i))
+    end if
   end do
   call wfxlab(iwfx,1,"Nuclear Charges")
 
@@ -2562,10 +2580,11 @@ Subroutine genwfx(ifcomm,iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,iedftyp,chanet
  ! main subroutine of EDF library.
  !
  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
- subroutine edfmain(iedf,lecp,iedftyp,nat,nedf,iza,icore)
+ subroutine edfmain(iedf,lecp,iedftyp,nat,nedf,iza,icore,lghst)
   implicit real(kind=8) (a-h,o-z)
   parameter(MxEDF=40)  ! it's assumed that nfun <= 40
   dimension         :: iza(*), icore(*)
+  logical           :: lghst(*)
   allocatable       :: edfa(:), edfc(:)
 
   nedf = 0
@@ -2579,7 +2598,7 @@ Subroutine genwfx(ifcomm,iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,iedftyp,chanet
 
   write(*,"(/,'  Generate EDF data:')")
   do i=1,nat
-    if(icore(i) > 0)then
+    if(.NOT. lghst(i) .and. icore(i) > 0)then
       if(iedftyp == 0) then
         call EDFLIB(iza(i),icore(i),nfun,edfa,edfc)
       else
@@ -2651,14 +2670,14 @@ Subroutine genwfx(ifcomm,iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,iedftyp,chanet
   return
  end subroutine finalwfx
 
-end
+end Subroutine genwfx
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
 ! generate a wfn file.
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine genwfn(iwfn,fwfn,isys,ver,dt,ititle,lpspin,  nat,lecp,iza,icore,xyz,  MaxL,nshell,mapatm,lqnm,nshlls,nshlln,  &
+Subroutine genwfn(iwfn,fwfn,isys,ver,dt,ititle,lpspin,  nat,lecp,iza,icore,lghst,xyz,  MaxL,nshell,mapatm,lqnm,nshlls,nshlln,  &
  expgto,congto,ncarp,ncarc,nmotot,nmo,lalph,lbeta,ispin,ene,occup,lprtmo,carmo,  enetot,vratio,  tmp)
  implicit real(kind=8) (a-h,o-z)
  character*5       :: ver
@@ -2667,6 +2686,7 @@ Subroutine genwfn(iwfn,fwfn,isys,ver,dt,ititle,lpspin,  nat,lecp,iza,icore,xyz, 
  character*100     :: tmp
  dimension         :: iza(*), icore(*), xyz(3,*), mapatm(*), lqnm(*), nshlls(*), nshlln(*), expgto(*), congto(*),  &
                       ispin(*), ene(*), occup(*), lprtmo(*), carmo(ncarc,*)
+ logical           :: lghst(*)
  allocatable       :: expg(:), conf(:), ityp(:), icmo(:), cn(:)
 
  OPEN(iwfn,FILE=fwfn)
@@ -2681,7 +2701,7 @@ Subroutine genwfn(iwfn,fwfn,isys,ver,dt,ititle,lpspin,  nat,lecp,iza,icore,xyz, 
 
  write(iwfn,"('GAUSSIAN',8x,i7,' MOL ORBITALS',i7,' PRIMITIVES',i9,' NUCLEI')")nmo, ncarp, nat
 
- call writeatm(iwfn,nat,iza,icore,xyz,tmp)
+ call writeatm(iwfn,nat,iza,icore,lghst,xyz,tmp)
 
  allocate(expg(ncarp), conf(ncarp), ityp(ncarp), icmo(ncarp), cn(ncarp))
  call writecnt(iwfn,0,  nshell,mapatm,lqnm,nshlls,nshlln,expgto,congto,  ncarp,expg,conf,ityp,icmo)
@@ -2708,14 +2728,19 @@ Subroutine genwfn(iwfn,fwfn,isys,ver,dt,ititle,lpspin,  nat,lecp,iza,icore,xyz, 
  contains
 
  ! print coordinates to WFN.
- subroutine writeatm(iwfn,nat,iza,icore,xyz,am)
+ subroutine writeatm(iwfn,nat,iza,icore,lghst,xyz,am)
   implicit real(kind=8) (a-h,o-z)
   dimension         :: iza(*), icore(*), xyz(3,*)
+  logical           :: lghst(*)
   character*3       :: am
 
   do i=1,nat
     call ElemZA(1,am,iza(i))
-    write(iwfn,"(2x,A3,i3,4x,'(CENTRE',i3,') ',3f12.8,'  CHARGE =',f5.1)")am,i,i,xyz(:,i),dble(iza(i)-icore(i))
+    if(lghst(i)) then
+      write(iwfn,"(2x,A3,i3,4x,'(CENTRE',i3,') ',3f12.8,'  CHARGE =',f5.1)")am,i,i,xyz(:,i),0.0d0
+    else
+      write(iwfn,"(2x,A3,i3,4x,'(CENTRE',i3,') ',3f12.8,'  CHARGE =',f5.1)")am,i,i,xyz(:,i),dble(iza(i)-icore(i))
+    end if
   end do
 
   return
@@ -2796,7 +2821,7 @@ Subroutine genwfn(iwfn,fwfn,isys,ver,dt,ititle,lpspin,  nat,lecp,iza,icore,xyz, 
   return
  end subroutine finalwfn
 
-end
+end Subroutine genwfn
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
@@ -2912,7 +2937,7 @@ end
 ! generate a standard Molden file with spherical or Cartrsian basis functions.
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine genmdn(fmdn,inmd,isym,isys,ver,dt,ititle,nat,MaxL,lecp,iza,icore,xyz, nshell,mapatm,lqnm,nshlls,nshlln,  &
+Subroutine genmdn(fmdn,inmd,isym,isys,ver,dt,ititle,nat,MaxL,lecp,iza,icore,lghst,xyz, nshell,mapatm,lqnm,nshlls,nshlln,  &
  expgto,congto,lspout,nmotot,ngc,lsymm,ispin,ene,occup,lprtmo,carmo,tmp)
  implicit real(kind=8) (a-h,o-z)
  character*5       :: ver
@@ -2921,6 +2946,7 @@ Subroutine genmdn(fmdn,inmd,isym,isys,ver,dt,ititle,nat,MaxL,lecp,iza,icore,xyz,
  character*100     :: tmp
  dimension         :: iza(*), icore(*), xyz(3,*), mapatm(*), lqnm(*), nshlls(*), nshlln(*), expgto(*), congto(*),  &
                       ispin(*), ene(*), occup(*), lprtmo(*), carmo(ngc,*)
+ logical           :: lghst(*)
  character*1       :: ALQ(0:5)
 
  OPEN(inmd,FILE=fmdn)
@@ -2942,8 +2968,12 @@ Subroutine genmdn(fmdn,inmd,isym,isys,ver,dt,ititle,nat,MaxL,lecp,iza,icore,xyz,
  write(inmd,"('[Atoms] AU')")
  do i=1,nat
    call ElemZA(1,tmp,iza(i))
-   !write(inmd,"(2x,a3,2i5,3f20.10)") tmp(1:3), i, iza(i)-icore(i), xyz(:,i)
-   write(inmd,"(2x,a3,2i5,3f20.10)") tmp(1:3), i, iza(i), xyz(:,i)
+   if(lghst(i)) then    ! ghost atom: iz = 0
+     write(inmd,"(2x,a3,2i5,3f20.10)") tmp(1:3), i, 0, xyz(:,i)
+   else
+     !write(inmd,"(2x,a3,2i5,3f20.10)") tmp(1:3), i, iza(i)-icore(i), xyz(:,i)
+     write(inmd,"(2x,a3,2i5,3f20.10)") tmp(1:3), i, iza(i), xyz(:,i)
+   end if
  end do
 
  ! #core
@@ -3970,10 +4000,11 @@ end
 ! read core data
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
- subroutine RdCore(ifcomm,imtm,iprog,chanet,ntote,nchar,sumocc,lrdecp,natm,ifbeta,lfc4,lecp,iza,icore,ctmp,yn,ierr)
+subroutine RdCore(ifcomm,imtm,iprog,chanet,ntote,nchar,sumocc,lrdecp,natm,ifbeta,lfc4,lecp,iza,icore,lghst,ctmp,yn,ierr)
  implicit real(kind=8) (a-h,o-z)
  logical           :: ifcomm
  dimension         :: iza(natm), icore(natm)
+ logical           :: lghst(natm)
  character*100     :: ctmp
  character*1       :: yn, L2U
 
@@ -3983,6 +4014,8 @@ end
    write(*,"(//,' The [PSEUDO] data block has been found in the Molden file.')")
  else if(lrdecp == 2) then
    write(*,"(//,' The [CORE] data block has been found in the Molden file.')")
+ else if(lrdecp == 3) then
+   write(*,"(//,' The [NVAL] data block has been found in the Molden file.')")
  ! else if(abs(dble(nchar)-sumocc) > 0.001d0)then
  else if(abs(dble(nchar)-sumocc) > 1.001d0 .and. (dble(nchar)-sumocc) > -8.001d0)then
    if(.not. ifcomm) then
@@ -3994,18 +4027,19 @@ end
    yn=L2U(yn)
    lrdecp = 0
    if(yn /= 'N') then
-     lrdecp = 3
-     write(*,"(/,' No [CORE] or [PSEUDO] data found. You have to type them in this terminal.',/, &
+     lrdecp = 9
+     write(*,"(/,' The [CORE]/[PSEUDO]/[NVAL] data block is not found, which will be provided here.',/, &
        ' Please consult the format of [Core]. Use an empty line to end the input.')")
    end if
  end if
 
  icore = 0
- if(lrdecp == 1 .or. lrdecp == 2)then
-   call RdCore1(imtm,natm,lecp,lrdecp,iza,icore,ctmp,ierr)
+ ! core electrons of ghost atom are excluded
+ if(lrdecp == 1 .or. lrdecp == 2 .or. lrdecp == 3)then
+   call RdCore1(imtm,natm,lecp,lrdecp,iza,icore,lghst,ctmp,ierr)
      if(ierr /= 0)goto 1000
- else if(lrdecp == 3) then
-   call RdCore2(natm,lecp,iza,icore,ctmp,ierr)
+ else if(lrdecp == 9) then
+   call RdCore2(natm,lecp,iza,icore,lghst,ctmp,ierr)
      if(ierr /= 0)goto 1000
  end if
 
@@ -4137,19 +4171,19 @@ end
   9910  return
  end subroutine chkcharge
 
-end
+end subroutine RdCore
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
 ! read core information from the terminal
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine RdCore2(nat,ncor,iza,ico,ctmp,ierr)
+Subroutine RdCore2(nat,ncor,iza,ico,lghst,ctmp,ierr)
  implicit real(kind=8) (a-h,o-z)
  character*100     :: ctmp
  character*3       :: atom
  dimension         :: iza(nat), ico(nat)
- logical           :: ifind
+ logical           :: lghst(nat), ifind
 
  ierr = 1
  ncor = 0
@@ -4214,9 +4248,8 @@ Subroutine RdCore2(nat,ncor,iza,ico,ctmp,ierr)
    ! end if
  end do
 
- ncor = 0
  do i=1,nat
-   ncor = ncor + ico(i)
+   if(.NOT. lghst(i)) ncor = ncor + ico(i)
  end do
 
 ! print core information
@@ -4266,15 +4299,15 @@ end
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
-! read core information from the [PSEUDO] (lrdecp = 1) or [CORE] (lrdecp = 2) block in MOLDEN
+! read core information from the [PSEUDO] (lrdecp = 1), [CORE] (lrdecp = 2), or [NVAL] (lrdecp = 3) block in MOLDEN
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine RdCore1(imtm,nat,ncor,lrdecp,iza,ico,ctmp,ierr)
+Subroutine RdCore1(imtm,nat,ncor,lrdecp,iza,ico,lghst,ctmp,ierr)
  implicit real(kind=8) (a-h,o-z)
  character*100     :: ctmp
  character*3       :: atom
  dimension         :: iza(nat), ico(nat)
- logical           :: ifind
+ logical           :: lghst(nat), ifind
 
  ierr = 1
  ncor = 0
@@ -4284,7 +4317,7 @@ Subroutine RdCore1(imtm,nat,ncor,lrdecp,iza,ico,ctmp,ierr)
  do while(.true.)
    read(imtm,"(a100)")ctmp
    call charl2u(ctmp)
-   if(index(ctmp,'[PSEUDO]') /= 0 .or. index(ctmp,'[CORE]') /= 0) exit
+   if(index(ctmp,'[PSEUDO]') /= 0 .or. index(ctmp,'[CORE]') /= 0 .or. index(ctmp,'[NVAL]') /= 0) exit
  end do
 
  if(lrdecp == 1) then
@@ -4373,11 +4406,42 @@ Subroutine RdCore1(imtm,nat,ncor,lrdecp,iza,ico,ctmp,ierr)
      ! end if
    end do
 
+ else if(lrdecp == 3) then
+   ! [NVAL] introduced by MultiWFN
+   do while(.true.)
+     read(imtm,"(a100)",iostat=irdfin)ctmp
+     if(LEN_TRIM(ctmp) == 0 .or. index(ctmp,'[') /= 0 .or. irdfin /= 0) exit
+
+     read(ctmp,*,err=9016,end=9016) atom, icore  ! = nval
+     call ElemZA(0,atom,IZ)
+     icore = IZ - icore
+
+     ! check: icore
+     if(icore < 0 .or. icore > 120) goto 9035
+
+     ! check: ZA > icore
+     if(IZ <= icore) goto 9040
+
+     ! search all atoms with IZA = IZ
+     ifind = .false.
+     do L=1,nat
+       if(iza(L) == IZ) then
+         ifind = .true.
+         ico(L) = icore
+       end if
+     end do
+     if(.not. ifind) goto 9050
+
+     ! check ZA vs. icore: icore must be an even number (4f & 5f metals are excluded)
+     ! if(IZ < 57 .or. IZ > 103 .or. (IZ > 71 .and. IZ < 89) ) then
+     if(mod(icore,2) /= 0) goto 9060
+     ! end if
+   end do
+
  end if
 
- ncor = 0
  do i=1,nat
-   ncor = ncor + ico(i)
+   if(.NOT. lghst(i)) ncor = ncor + ico(i)
  end do
 
  ! print core information
@@ -4402,6 +4466,10 @@ Subroutine RdCore1(imtm,nat,ncor,lrdecp,iza,ico,ctmp,ierr)
  return
 
  9015  write(*,"(//,' ### Error when reading core data! The format is',/,5x,'Name  IAtom  ZA-Ncore')")
+ write(*,"(2x,a)")trim(ctmp)
+ return
+
+ 9016  write(*,"(//,' ### Error when reading nval data! The format is',/,5x,'Element  Nval (= ZA - Ncore)')")
  write(*,"(2x,a)")trim(ctmp)
  return
 
@@ -4613,25 +4681,32 @@ end
 ! Read Cartesian coordinates from iatm
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine RdAtoms(iatm,natm,iza,xyz)
+Subroutine RdAtoms(iatm,natm,iza,lghst,xyz)
  implicit real(kind=8) (a-h,o-z)
  parameter(ang2au=1.0d0/0.52917720859d0)
  dimension         :: iza(natm), xyz(3,natm)
+ logical           :: lghst(natm)
+
+ lghst = .false.
 
  rewind(iatm)
 
  read(iatm,*) iang
  do i = 1, natm
    read(iatm,*) iza(i), xyz(:,i)
+   if(iza(i) < 0) then
+     iza(i) = abs(iza(i))
+     lghst(i) = .true.
+   end if
  end do
  if(iang == 1) xyz = xyz * ang2au
 
  return
-end
+end Subroutine RdAtoms
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
-! Check the molden file, and search the [PSEUDO] (lrdecp = 1) or [CORE] (lrdecp = 2) block
+! Check the molden file, and search the [PSEUDO] (lrdecp = 1), [CORE] (lrdecp = 2), or [NVAL] (lrdecp = 3) block
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Subroutine ChkMolden(imod,lrdecp,tmp1,ierr)
@@ -4677,6 +4752,12 @@ Subroutine ChkMolden(imod,lrdecp,tmp1,ierr)
      lrdecp = 2
    end if
 
+   ! [NVAL] block
+   if(index(tmp1,'[NVAL]') /= 0) then
+     ipp = ipp + 1
+     lrdecp = 3
+   end if
+
    ! [GTO] block
    if(index(tmp1,'[GTO]') /= 0) then
      igto = igto + 1
@@ -4701,7 +4782,7 @@ Subroutine ChkMolden(imod,lrdecp,tmp1,ierr)
  end if
 
  if(ipp > 1) then
-   write(*,"(' *** Error! [PSEUDO] and [CORE] can not be used together!')")
+   write(*,"(' *** Error! [PSEUDO], [CORE], and [NVAL] can not be used together!')")
    ierr = 1
    goto 9999
  end if
@@ -4737,7 +4818,7 @@ Subroutine ChkMolden(imod,lrdecp,tmp1,ierr)
  end if
 
  9999  return
-end
+end Subroutine ChkMolden
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
@@ -5870,14 +5951,16 @@ Subroutine ROADrv(imod1,imod2,igto,iprog,ctmp,ierr)
     if(ierr == 1) return
  end if
 
- ! [CORE] or [PSEUDO]
+ ! [PSEUDO], [CORE], or [NVAL]
  ! symmetric equivalent atoms are not affected by the reordering
- call searchar2(imod1,6,"[CORE]",8,"[PSEUDO]",ctmp,ierr)
+ call searchar3(imod1,8,"[PSEUDO]",6,"[CORE]",6,"[NVAL]",ctmp,ierr)
  if(ierr /= 0) then
    if(ierr == 1) then
+     write(imod2,"('[PSEUDO]')")
+   else if(ierr == 2) then
      write(imod2,"('[CORE]')")
    else
-     write(imod2,"('[PSEUDO]')")
+     write(imod2,"('[NVAL]')")
    end if
    ierr = 0
    do while(.true.)
@@ -6005,17 +6088,36 @@ Subroutine ROADrv(imod1,imod2,igto,iprog,ctmp,ierr)
   do i=1,NAtm
     read(imod1,*)ctmp, ia, iz, xyz(1), xyz(2), xyz(3)
     if(ia /= i) goto 100
-    ctmp(1:1) = L2U(ctmp(1:1))
-    if(ctmp(1:1) == "X" .or. ctmp(1:1) == "Q" .or. iz <= 0) goto 200
+    call charl2u(ctmp)
+    ! if(ctmp(1:1) == "X" .or. ctmp(1:1) == "Q" .or. iz <= 0) goto 200
+    ! ghost atom?
+    ! case 1: bq-xx, xx-bq, ghost-xx, xx-ghost
+    if(index(ctmp,'BQ') > 0 .or. index(ctmp,'GHOST') > 0) then
+      iz = 0
+      if(ctmp(1:3) == "BQ-") then
+        ctmp(1:4) = ctmp(4:7)
+      else if(ctmp(1:6) == "GHOST-") then
+        ctmp(1:4) = ctmp(7:10)
+      else
+        ia = index(ctmp,'-')
+        ctmp = ctmp(1:ia-1)
+      end if
+    ! case 2: iz = 0: do nothing
+    ! dummy atom?
+    else if( (ctmp(1:1) == "X" .and. ctmp(1:2) /= "XE") .or. iz < 0) then
+      goto 200
+    else if( (ctmp(1:1) == "X" .and. ctmp(1:2) /= "XE") .and. iz == 0) then
+      goto 200
+    end if
 
-    write(imod2,"(a4,2i5,3f20.10)")trim(ctmp), i, iz, xyz
+    write(imod2,"(a4,2i5,3f20.10)")adjustl(ctmp(1:4)), i, iz, xyz
   end do
   return
 
   100   write(*,"(' *** Error! This MOLDEN file is not supported!')")
   ierr = 1
   return
-  200   write(*,"(' *** Error! Dummy & ghost atoms are not supported!')")
+  200   write(*,"(' *** Error! Dummy atoms are not supported!')")
   ierr = 1
   return
  end subroutine RdAtm
@@ -6034,12 +6136,37 @@ Subroutine ROADrv(imod1,imod2,igto,iprog,ctmp,ierr)
   do i=1,NAtm
     read(imod1,*)ctmp, ia, iz, xyz(1), xyz(2), xyz(3)
     if(ia == iold)then
-      write(imod2,"(a4,2i5,3f20.10)")trim(ctmp), inew, iz, xyz
+      call charl2u(ctmp)
+
+      ! ghost atom?
+      ! case 1: bq-xx, xx-bq, ghost-xx, xx-ghost
+      if(index(ctmp,'BQ') > 0 .or. index(ctmp,'GHOST') > 0) then
+        iz = 0
+        if(ctmp(1:3) == "BQ-") then
+          ctmp(1:4) = ctmp(4:7)
+        else if(ctmp(1:6) == "GHOST-") then
+          ctmp(1:4) = ctmp(7:10)
+        else
+          ia = index(ctmp,'-')
+          ctmp = ctmp(1:ia-1)
+        end if
+      ! case 2: iz = 0: do nothing
+      ! dummy atom?
+      else if( (ctmp(1:1) == "X" .and. ctmp(1:2) /= "XE") .or. iz < 0) then
+        goto 200
+      else if( (ctmp(1:1) == "X" .and. ctmp(1:2) /= "XE") .and. iz == 0) then
+        goto 200
+      end if
+
+      write(imod2,"(a4,2i5,3f20.10)") adjustl(ctmp(1:4)), inew, iz, xyz
       return
     end if
   end do
 
   write(*,"(' *** Error! Atom(',i4,') cannot be found.')") iold
+  ierr = 1
+  return
+  200   write(*,"(' *** Error! Dummy atoms are not supported!')")
   ierr = 1
   return
  end subroutine RdAtmI
@@ -6090,10 +6217,11 @@ Subroutine ROADrv(imod1,imod2,igto,iprog,ctmp,ierr)
     if(index(ctmp,'[')/=0 .and. index(ctmp,']')/=0) exit
     if(len_trim(ctmp) == 0) cycle
     NAtmX = NAtmX +1
-    ! Dummy atom or ghost atom?
+    ! Dummy atom?
     read(ctmp,*) Elm, i1, i2
     call chl2u(Elm,len_trim(Elm))
-    if( (Elm(1:1) == "X" .and. Elm(1:2) /= "XE") .or. Elm(1:1) == "Q" .or. i2 == 0) cycle
+    if( (Elm(1:1) == "X" .and. Elm(1:2) /= "XE") .or. i2 < 0) cycle
+    if( (Elm(1:1) == "X" .and. Elm(1:2) /= "XE") .and. i2 == 0) cycle
 
     NAtm = NAtm +1
   end do
@@ -6128,11 +6256,11 @@ Subroutine ROADrv(imod1,imod2,igto,iprog,ctmp,ierr)
   return
  end subroutine searchar
 
- ! search optional LOGO1 or LOGO2
- subroutine searchar2(imod1,lenth1,LOGO1,lenth2,LOGO2,ctmp,ifind)
+ ! search optional LOGO1, LOGO2, or LOGO3
+ subroutine searchar3(imod1,lenth1,LOGO1,lenth2,LOGO2,lenth3,LOGO3,ctmp,ifind)
   implicit none
-  integer(kind=4) :: imod1, lenth1, lenth2, ifind
-  character*(*) :: LOGO1, LOGO2
+  integer(kind=4) :: imod1, lenth1, lenth2, lenth3, ifind
+  character*(*) :: LOGO1, LOGO2, LOGO3
   character*100 :: ctmp
 
   rewind(imod1)
@@ -6141,9 +6269,14 @@ Subroutine ROADrv(imod1,imod2,igto,iprog,ctmp,ierr)
   do while(.true.)
     read(imod1,"(100a)",err=100,end=100)ctmp
     call charl2u(ctmp)
-    if(index(ctmp,LOGO1(1:lenth1))/=0 .or. index(ctmp,LOGO2(1:lenth2))/=0) then
+    if(index(ctmp,LOGO1(1:lenth1))/=0) then
       ifind = 1
-      if(index(ctmp,LOGO2(1:lenth2))/=0) ifind = 2
+      exit
+    else if(index(ctmp,LOGO2(1:lenth2))/=0) then
+      ifind = 2
+      exit
+    else if(index(ctmp,LOGO3(1:lenth3))/=0) then
+      ifind = 3
       exit
     end if
   end do
@@ -6152,9 +6285,9 @@ Subroutine ROADrv(imod1,imod2,igto,iprog,ctmp,ierr)
 
   100 continue
   return
- end subroutine searchar2
+ end subroutine searchar3
 
-end
+end Subroutine ROADrv
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
@@ -6197,10 +6330,14 @@ Subroutine countmo(imtm,iatm,natm,nchar,nbas,nmo,tmp1,ierr)
    if(len_trim(tmp1) == 0 .or. irdfin /= 0) exit
    if(index(tmp1,'[') /= 0 .and. index(tmp1,']') /= 0) exit
    natm = natm + 1
-   call RdCoord(tmp1,ia,iz,x,y,z,ierr)
+   call RdCoord(tmp1,ia,iz,iz0,x,y,z,ierr)
      if(ierr == 1) goto 9999
-   write(iatm,"(i4,3f22.12)") iz,x,y,z
-   nchar=nchar+iz
+   if(iz0 > 0) then
+     write(iatm,"(i4,3f22.12)") iz,x,y,z
+     nchar=nchar+iz
+   else if(iz0 == 0) then    ! ghost atom
+     write(iatm,"(i4,3f22.12)") -iz,x,y,z
+   end if
    ! check compatibility: because of some uncertainties in the MOLDEN format, the atomic indices must be 1,2,3,4,...
    ! (this should have been corrected in sub. ROADrv)
    if(ia /= natm) goto 7200
@@ -6264,7 +6401,7 @@ Subroutine countmo(imtm,iatm,natm,nchar,nbas,nmo,tmp1,ierr)
  8200 write(*,"(' *** Error! NMO < 1 in the [MO] block!')")
  ierr = 1
  return
-end
+end Subroutine countmo
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
@@ -6736,8 +6873,10 @@ END
 !
 ! Read an atom and its coordinates
 !
+! ghost atom: iz0 = 0
+!
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine RdCoord(tmp,ia,iz,x,y,z,ierr)
+Subroutine RdCoord(tmp,ia,iz,iz0,x,y,z,ierr)
  implicit real(kind=8) (a-h,o-z)
  character*100     :: tmp
  character*3       :: element
@@ -6749,10 +6888,10 @@ Subroutine RdCoord(tmp,ia,iz,x,y,z,ierr)
  call rmnumb(3,element)
  call ElemZA(0,element,iz)
  ! In the Molden program, atomic_name can be any characters and is omitted, so iz can be 0. In this case read iz from iz0.
- if(iz == 0) iz = iz0
+ if(iz == 0 .and. iz0 > 0) iz = iz0
 
  if(iz <= 0) then
-   write(*,"(' *** Error! Dummy atom and ghost atom are not supported!')")
+   write(*,"(' *** Error! Dummy atom is not supported!')")
    ierr=1
  end if
 
@@ -6998,49 +7137,34 @@ Subroutine SuppInf(ifcomm)
  implicit real(kind=8) (a-h,o-z)
  logical           :: ifcomm
 
- write(*,"(/,' Supported programs:',/,                                                 &
-   '  1) ACES-II 2.9 (fix reorder.F, and insert [PROGRAM] ACES2 into MOLDEN file)',/,  &
-   '  2) BDF-G (thanks to Dr. Bingbing Suo for testing)',/,                            &
-   '  3) CADPAC',/,                                                                    &
-   '  4) CFour (fix reorderdf.F, and insert [PROGRAM] CFOUR into MOLDEN file)',/,      &
-   '  5) Columbus (Natural orb. from MCSCF or CI with Cartesian SPDF functions;',/,    &
-   '     thanks to Dr. Marat Talipov for testing)',/,                                  &
-   '  6) Crystal (0D-Molecule with SPDF GTOs; insert [PROGRAM] Crystal into MOLDEN)',/,&
-   '  7) Dalton (> 2013; HF/DFT/MP2/MCSCF with spherical functions)',/,                &
-   '  8) deMon2k',/,                                                                   &
-   '  9) Gabedit (the GAB file is compatible)',/,                                      &
-   ' 10) Jaguar (SPDF functions, insert [Molden Format] into MOLDEN file)',/,          &
-   ' 11) MOLCAS (for Cart. functions, insert [PROGRAM] MOLCAS into MOLDEN file)',/,    &
-   ' 12) Molden (the Molden program can read MOs from the output file of some',/,      &
-   '     QC programs, and save a MOLDEN file)',/,                                      &
-   ' 13) MOLPRO',/,                                                                    &
-   ' 14) MRCC (for Cart. functions, insert [PROGRAM] MRCC into MOLDEN file)',/,        &
-   ' 15) MultiWFN (it can read the fchk file of Gaussian and Q-Chem, and save',/,      &
-   '     a MOLDEN file)',/,                                                            &
-   ' 16) NBO6 (> May.2014, insert [PROGRAM] NBO6 into MOLDEN file)',/,                 &
-   ' 17) NWChem (>= 6.8) by MOLDEN_NORM JANPA or NONE',/,                              &
-   ' 18) ORCA (optional, insert [PROGRAM] ORCA into MOLDEN file)',/,                   &
-   ' 19) Priroda (thanks to Dr. Evgeniy Pankratyev for testing)',/,                    &
-   ' 20) PSI4 (spherical functions only; insert [PROGRAM] PSI4 into MOLDEN file)',/,   &
-   ' 21) PySCF',/,                                                                     &
-   ' 22) Q-Chem (spherical SPDF or Cartesian SPD functions)',/,                        &
-   ' 23) StoBe',/,                                                                     &
-   ' 24) TeraChem (SPDF functions)',/,                                                 &
-   ' 25) Turbomole (insert [PROGRAM] TURBOMOLE into MOLDEN file)'                      &
+ write(*,"(/,' The following programs are supported:',/,                               &
+   '  1) ACES-II          2) Bagel            3) BDF-G            4) CADPAC',/,        &
+   '  5) CFour            6) Columbus         7) CP2k (Quickstep) 8) Crystal (0D)',/,  &
+   '  9) Dalton          10) deMon2k         11) e^K             12) Jaguar',/,        &
+   ' 13) MOLCAS          14) MOLPRO          15) MRCC            16) NBO6',/,          &
+   ' 17) NWChem          18) ORCA            19) Priroda         20) PSI4',/,          &
+   ' 21) PySCF           22) Q-Chem          23) StoBe           24) TeraChem',/,      &
+   ' 25) Turbomole'                                                                    &
    )")
 
- write(*,"(/,' Programs to be tested:',/,                                              &
-   '  1) Bagel      2) CP2k       3) NRLMOL     4) SeqQuest'                           &
+ write(*,"(/,' With the aid of MultiWFN, Gabedit, or Molden (*.fch/out/log) to save a',/, &
+   ' MOLDEN/GAB file, the following programs may also be supported:',/,                &
+   '  1) Firefly          2) Gamess-UK        3) Gamess-US        4) Gaussian',/,      &
+   '  5) Q-Chem'                                                                       &
    )")
 
- write(*,"(/,' Unsupported programs:',/,                                               &
+ write(*,"(/,' The following programs will be tested:',/,                              &
+   '  1) NRLMOL           2) SeqQuest'                                                 &
+   )")
+
+ write(*,"(/,' The following programs are not supported:',/,                           &
    '  1) ADF'                                                                          &
    )")
 
  if(.not. ifcomm) call xcontinue
 
  return
-end
+end Subroutine SuppInf
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
