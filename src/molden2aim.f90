@@ -29,7 +29,7 @@ program Molden2AIM
  logical           :: doit, ifopen, ifcomm, ifwbo, L_ANSI
 
  character         :: fnam*150, fwfn*157, fwfx*157, fnbo*157, fmdn*164, ctmp*314
- character         :: dt*10 = "08/29/2023", ver*5 = "5.1.0"
+ character         :: dt*10 = "03/09/2024", ver*5 = "5.1.1"
  character         :: yn*1, L2U*1, stline*120
 
 !=================================================================================================================================
@@ -4528,6 +4528,10 @@ Subroutine chkbstyp(lsph,iprog,MaxL,ierr)
    ! aces2: Cartesian b.s. is used; for spherical b.s. (in a future version?), you should do some tests.
    write(*,"(' ### Wrong! ACES2 does not print MOs in spherical b.s.!')")
    ierr=1
+ else if(lsph /= 0 .and. MaxL > 3 .and. iprog == 7)then
+   ! PSI4 (after 2018): Cartesian g-functions are not supported!
+   write(*,"(' ### Wrong! Cartesian g-functions by PSI4 is not supported!')")
+   ierr=1
  else if(iprog == 10)then
    ! CRYSTAL: only spherical spdf functions may be used.
    if((lsph == 0 .and. MaxL > 1) .or. MaxL > 3) then
@@ -4868,7 +4872,7 @@ Subroutine carmoscale(iprog,nshell,lqnm,isclmo,ncg,scalmo,ierr)
          itypc((ip2-2):ip2)=2
        case(5)
          if(iprog /= 2) then
-           write(*,"(' *** Error: LQ > 4 in Sub. moscale.')")
+           write(*,"(' *** Error: LQ > 4 in Sub. carmoscale.')")
            ierr = 1
            goto 9999
          end if
@@ -4898,7 +4902,7 @@ Subroutine carmoscale(iprog,nshell,lqnm,isclmo,ncg,scalmo,ierr)
          itypc(ip1+19)= 5    ! xxxxy
          itypc(ip1+20)= 7    ! xxxxx
        case(6:)
-         write(*,"(' *** Error: LQ > 5 in Sub. moscale.')")
+         write(*,"(' *** Error: LQ > 5 in Sub. carmoscale.')")
          ierr = 1
          goto 9999
      end select
@@ -4928,13 +4932,13 @@ Subroutine carmoscale(iprog,nshell,lqnm,isclmo,ncg,scalmo,ierr)
          ip2=ip2+15
          itypc(ip1:ip2)=4
        case(5:)
-         write(*,"(' *** Error: LQ > 4 in Sub. moscale.')")
+         write(*,"(' *** Error: LQ > 4 in Sub. carmoscale.')")
          ierr = 1
          goto 9999
      end select
    end do
- else if(iprog == 8)then
-  ! Cartesian CGTO types of mrcc
+ else if(iprog == 7 .or. iprog == 8)then
+  ! Cartesian CGTO types of psi4(> 2018) and mrcc
    do ish = 1, nshell
      select case(lqnm(ish))
        case(0)
@@ -4957,6 +4961,11 @@ Subroutine carmoscale(iprog,nshell,lqnm,isclmo,ncg,scalmo,ierr)
          itypc((ip1+3):(ip2-1))=3
          itypc(ip2:ip2)=4
        case(4)
+         if(iprog == 7) then
+           write(*,"(' *** Error: Cart. G-functions are not supported for PSI4 in Sub. carmoscale.')")
+           ierr = 1
+           goto 9999
+         end if
          ip1=ip2+1
          ip2=ip2+15
          itypc(ip1:(ip1+2))=1
@@ -4964,7 +4973,7 @@ Subroutine carmoscale(iprog,nshell,lqnm,isclmo,ncg,scalmo,ierr)
          itypc((ip1+9):(ip1+11))=6
          itypc((ip2-2):ip2)=7
        case(5:)
-         write(*,"(' *** Error: LQ > 4 in Sub. moscale.')")
+         write(*,"(' *** Error: LQ > 4 in Sub. carmoscale.')")
          ierr = 1
          goto 9999
      end select
@@ -4983,7 +4992,7 @@ Subroutine carmoscale(iprog,nshell,lqnm,isclmo,ncg,scalmo,ierr)
      scalmo(i)=obscaltm(itypc(i))
    end do
    isclmo = 1
- else if(iprog == 8)then
+ else if(iprog == 7 .or. iprog == 8)then
    !  mrcc (Cart.)
    do i=1,ncg
      scalmo(i)=obscalmr(itypc(i))
@@ -5272,6 +5281,8 @@ Subroutine checkcar(iprog,nbasmo,ncar,nsph,lsph,ierr)
    lsph=1
    ! molcas with spherical functions: do nothing
    if(iprog == 6) iprog=-6
+   ! psi4 (> 2018) with spherical functions: do nothing
+   if(iprog == 7) iprog=-7
    ! mrcc with spherical functions: do nothing
    if(iprog == 8) iprog=-8
  else if(nbasmo < ncar(2) .and. nbasmo > nsph(2))then
@@ -5612,8 +5623,10 @@ Subroutine bknorm(igtoin,igtold,iprog,nat,al,ierr)
      do i=1,np
        read(igtoin,*) expgc(i), confc(i)
        cbs=1.d0
-       ! Orca, PSI4, NBO6, CRYSTAL: transform the basis set into input format
-       if(iprog == 1 .or. iprog == 7 .or. iprog == 9 .or. iprog ==10) cbs=fnorm(expgc(i),al)
+       !xxx Orca, PSI4(old sph), NBO6, CRYSTAL: transform the basis set into input format
+       !xxx if(iprog == 1 .or. iprog == 7 .or. iprog == 9 .or. iprog ==10) cbs=fnorm(expgc(i),al)
+       ! Orca, NBO6, CRYSTAL: transform the basis set into input format
+       if(iprog == 1 .or. iprog == 9 .or. iprog ==10) cbs=fnorm(expgc(i),al)
        confc(i)=confc(i)/cbs
      end do
 
