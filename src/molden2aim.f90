@@ -29,7 +29,7 @@ program Molden2AIM
  logical           :: doit, ifopen, ifcomm, ifwbo, L_ANSI
 
  character         :: fnam*150, fwfn*157, fwfx*157, fnbo*157, fmdn*164, ctmp*314
- character         :: dt*10 = "03/09/2024", ver*5 = "5.1.1"
+ character         :: dt*10 = "07/17/2025", ver*5 = "5.1.2"
  character         :: yn*1, L2U*1, stline*120
 
 !=================================================================================================================================
@@ -1363,7 +1363,12 @@ Subroutine DrvNBO(inbo,fnbo,isys,ver,dt,ititle,nbopro,  nat,iza,icore,lghst,xyz,
   end if
 
   if(MaxL > 4) then
-    write(*,"(/,'  Warning: H-functions are not supported by NBO 3.0.')")
+    ! A bug in NBO 6:
+    ! If h-functions are used for the all-electron calculations of post-4f atoms,
+    ! the atom will have an incorrect 5f3 occupation.
+    write(*,"(/,'  H-functions have been found. Warning:')")
+    write(*,"(/,'  There is a serious bug in NBO 6 for all-electron calculations of',/,  &
+      ' post-4f atoms. Please use NBO 7.')")
   else if(MaxL > 3) then
     write(*,"(/,'  Warning: G-functions are not fully supported by NBO 3.0.',/,  &
       '  Delete the $CONTRACT data block manually if NBO 3.0 is used.')")
@@ -2646,16 +2651,19 @@ Subroutine genwfx(ifcomm,iwfx,fwfx,isys,ver,dt,ititle,  iedf,lecp,iedftyp,chanet
   ! with ECP/MCP
   if(lecp > 0) then
     if(MaxL < 4)then
-      write(*,"(/,2x,'ECPs/MCPs are found! Please use',/,3x,'AIMALL, Critic2, DensToolKit, IGMPlot, MultiWFN, or ORBKIT',/)")
+      write(*,"(/,2x,'ECPs/MCPs are found! Please use',/,  &
+      3x,'AIMALL, Critic2, DensToolKit, IGMPlot, MultiWFN, ORBKIT, or TopChem2',/)")
+    else if(MaxL < 5)then
+      write(*,"(/,2x,'ECPs/MCPs and G-functions are found! Please use',/,3x,'AIMALL, Critic2, MultiWFN, ORBKIT, or TopChem2',/)")
     else
-      write(*,"(/,2x,'ECPs/MCPs and G-functions are found! Please use',/,3x,'AIMALL, Critic2, MultiWFN, or ORBKIT',/)")
+      write(*,"(/,2x,'ECPs/MCPs and H-functions are found! Please use',/,3x,'AIMALL or MultiWFN',/)")
     end if
   ! without ECP/MCP
   else
     if(MaxL < 4)then
-      write(*,"(/,2x,'Please use',/,3x,'AIMALL, Critic2, DensToolKit, GPView, IGMPlot, MultiWFN, or ORBKIT',/)")
+      write(*,"(/,2x,'Please use',/,3x,'AIMALL, Critic2, DensToolKit, GPView, IGMPlot, MultiWFN, or ORBKIT, or TopChem2',/)")
     else if(MaxL < 5)then
-      write(*,"(/,2x,'G-functions are found! Please use',/,3x,'AIMALL, Critic2, GPView, MultiWFN, or ORBKIT',/)")
+      write(*,"(/,2x,'G-functions are found! Please use',/,3x,'AIMALL, Critic2, GPView, MultiWFN, or ORBKIT, or TopChem2',/)")
     else
       write(*,"(/,2x,'H-functions are found! Please use',/,3x,'AIMALL or MultiWFN',/)")
     end if
@@ -2807,10 +2815,10 @@ Subroutine genwfn(iwfn,fwfn,isys,ver,dt,ititle,lpspin,  nat,lecp,iza,icore,lghst
     write(*,"(/,2x,'Because of PP (ECP or MCP), please use',/,3x,'MultiWFN 3.2.1 or higher versions',/)")
   else if(MaxL < 4)then
     write(*,"(/,2x,'Please use',/,3x,'AIM2000, AIMALL, AIMPAC, AIMPAC2, AIM-UC, CheckDen, Critic2, DensToolKit,',/,  &
-      3x,'DGrid, IGMPlot, MORPHY, MultiWFN, ORBKIT, PAMoC, ProMolden, TopChem,',/,3x,'TopMoD, or XAIM',/)")
+      3x,'DGrid, IGMPlot, MORPHY, MultiWFN, ORBKIT, PAMoC, ProMolden, TopChem2,',/,3x,'TopMoD, or XAIM',/)")
   else if(MaxL < 5)then
     write(*,"(/,2x,'G-functions are found! Please use',/,3x,  &
-      'AIM2000 (Ver. 2013), AIMALL, AIM-UC, Critic2, DGrid, MultiWFN, ORBKIT,',/,3x,'or TopChem',/)")
+      'AIM2000 (Ver. 2013), AIMALL, AIM-UC, Critic2, DGrid, MultiWFN, ORBKIT,',/,3x,'or TopChem2',/)")
   else
     write(*,"(/,2x,'H-functions are found! Please use',/,3x,  &
       'AIMALL or MultiWFN',/)")
@@ -4528,6 +4536,10 @@ Subroutine chkbstyp(lsph,iprog,MaxL,ierr)
    ! aces2: Cartesian b.s. is used; for spherical b.s. (in a future version?), you should do some tests.
    write(*,"(' ### Wrong! ACES2 does not print MOs in spherical b.s.!')")
    ierr=1
+ else if(lsph == 0 .and. MaxL > 4 .and. iprog == 6)then
+   ! Molcas (modified)
+   write(*,"(' ### Wrong! Cartesian h-functions has not been implemented for modified Molcas!')")
+   ierr=1
  else if(lsph /= 0 .and. MaxL > 3 .and. iprog == 7)then
    ! PSI4 (after 2018): Cartesian g-functions are not supported!
    write(*,"(' ### Wrong! Cartesian g-functions by PSI4 is not supported!')")
@@ -4541,7 +4553,7 @@ Subroutine chkbstyp(lsph,iprog,MaxL,ierr)
  end if
 
  return
-end
+end subroutine chkbstyp
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
@@ -5362,8 +5374,14 @@ Subroutine npgau(igto,iprog,ncar,nsph,MaxL,nshell,ngto,tmp,ierr)
      nshell=nshell+1
      ngto=ngto+npg
    else if(index(tmp,'H ') /= 0)then
-     ! For MultiWFN, CFour, and Orca only!
-     if(iprog /=0 .and. iprog /= 1 .and. iprog /= 2) then
+     !   Program     iprog
+     !   BDF          0
+     !   CFour        2
+     !   Dalton       0
+     !   Molcas       0 or 6 (modified for spherical h-functions only)
+     !   MultiWFN     0
+     !   Orca         1
+     if(iprog /=0 .and. iprog /= 1 .and. iprog /= 2 .and. iprog /= 6) then
        write(*,"(' *** Error! Only S,P,D,F,G functions are supported!',/,' Please check your MOLDEN file.')")
        Ierr=1
        goto 9999
@@ -5408,7 +5426,7 @@ Subroutine npgau(igto,iprog,ncar,nsph,MaxL,nshell,ngto,tmp,ierr)
  end if
 
  9999  return
-end
+end subroutine npgau
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
